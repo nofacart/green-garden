@@ -24,15 +24,18 @@
         </header>
 
         <!-- BARRE D'ONGLETS -->
-        <nav class="flex border-b border-slate-200 mb-8 space-x-2" aria-label="Tabs">
-            <button onclick="switchTab('tab-suivi')" id="btn-tab-suivi" class="tab-button border-b-2 border-green-600 px-4 py-2.5 text-sm font-medium text-green-700 focus:outline-none">
+        <nav class="flex border-b border-slate-200 mb-8 space-x-2 overflow-x-auto" aria-label="Tabs">
+            <button onclick="switchTab('tab-suivi')" id="btn-tab-suivi" class="tab-button border-b-2 border-green-600 px-4 py-2.5 text-sm font-medium text-green-700 focus:outline-none whitespace-nowrap">
                 📆 Suivi du jour
             </button>
-            <button onclick="switchTab('tab-historique')" id="btn-tab-historique" class="tab-button border-b-2 border-transparent px-4 py-2.5 text-sm font-medium text-slate-500 hover:text-slate-700 hover:border-slate-300 focus:outline-none">
+            <button onclick="switchTab('tab-historique')" id="btn-tab-historique" class="tab-button border-b-2 border-transparent px-4 py-2.5 text-sm font-medium text-slate-500 hover:text-slate-700 hover:border-slate-300 focus:outline-none whitespace-nowrap">
                 📜 Historique
             </button>
-            <button onclick="switchTab('tab-meteo')" id="btn-tab-meteo" class="tab-button border-b-2 border-transparent px-4 py-2.5 text-sm font-medium text-slate-500 hover:text-slate-700 hover:border-slate-300 focus:outline-none">
+            <button onclick="switchTab('tab-meteo')" id="btn-tab-meteo" class="tab-button border-b-2 border-transparent px-4 py-2.5 text-sm font-medium text-slate-500 hover:text-slate-700 hover:border-slate-300 focus:outline-none whitespace-nowrap">
                 🌤️ Météo & API
+            </button>
+            <button onclick="switchTab('tab-reglages')" id="btn-tab-reglages" class="tab-button border-b-2 border-transparent px-4 py-2.5 text-sm font-medium text-slate-500 hover:text-slate-700 hover:border-slate-300 focus:outline-none whitespace-nowrap">
+                ⚙️ Réglages
             </button>
         </nav>
 
@@ -137,6 +140,22 @@
                     </div>
                 </div>
             </div>
+
+            <!-- ONGLET 4 : RÉGLAGES -->
+            <div id="tab-reglages" class="tab-content hidden space-y-6">
+                <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
+                    <h2 class="text-lg font-bold text-slate-900 mb-2">⚙️ Configuration de mon jardin</h2>
+                    <p class="text-slate-500 text-sm mb-6">Sélectionnez les plantes cultivées dans votre jardin pour adapter le suivi et les graphiques.</p>
+                    
+                    <div id="settings-plants-container" class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
+                        <!-- Injecté dynamiquement par JS -->
+                    </div>
+                    
+                    <button onclick="uiSauvegarderReglages()" class="bg-green-600 hover:bg-green-700 text-white font-medium py-2.5 px-6 rounded-xl transition-colors shadow-sm">
+                        💾 Enregistrer mes plantes
+                    </button>
+                </div>
+            </div>
         </main>
     </div>
 
@@ -150,7 +169,10 @@
             famillesPlantes: {
                 "Pelouse": { besoinEauStandardMm: 4, icone: "🌱" },
                 "Tomates": { besoinEauStandardMm: 5, icone: "🍅" },
-                "Aromatiques": { besoinEauStandardMm: 2, icone: "🌿" }
+                "Aromatiques": { besoinEauStandardMm: 2, icone: "🌿" },
+                "Courgettes": { besoinEauStandardMm: 4, icone: "🥒" },
+                "Salades": { besoinEauStandardMm: 3, icone: "🥬" },
+                "Fruitiers": { besoinEauStandardMm: 3, icone: "🌳" }
             }
         };
 
@@ -325,6 +347,22 @@
             `).join('');
         }
 
+        function renderSettingsView() {
+            const container = document.getElementById('settings-plants-container');
+            const choisies = DataManager.parametres.plantesChoisies;
+            
+            container.innerHTML = Object.keys(CONFIG_JARDIN.famillesPlantes).map(p => {
+                const checked = choisies.includes(p) ? 'checked' : '';
+                const icone = CONFIG_JARDIN.famillesPlantes[p].icone;
+                return `
+                    <label class="flex items-center justify-between p-3 bg-slate-50 hover:bg-slate-100 rounded-xl cursor-pointer border border-slate-200 transition-colors">
+                        <span class="text-sm font-medium text-slate-700">${icone} ${p}</span>
+                        <input type="checkbox" name="settings-plants" value="${p}" ${checked} class="w-4 h-4 text-green-600 accent-green-600 rounded">
+                    </label>
+                `;
+            }).join('');
+        }
+
         // ==========================================
         // 6. SYSTÈME DE CONSEILS
         // ==========================================
@@ -421,6 +459,9 @@
                 let col = '#16a34a';
                 if (plante === 'Tomates') col = '#ea580c';
                 if (plante === 'Aromatiques') col = '#0d9488';
+                if (plante === 'Courgettes') col = '#84cc16';
+                if (plante === 'Salades') col = '#06b6d4';
+                if (plante === 'Fruitiers') col = '#65a30d';
 
                 return {
                     label: plante,
@@ -482,6 +523,27 @@
             alert(`✂️ Tonte à ${h} cm enregistrée !`);
         }
 
+        function uiSauvegarderReglages() {
+            const checked = Array.from(document.querySelectorAll('input[name="settings-plants"]:checked')).map(i => i.value);
+            if (checked.length === 0) return alert("Veuillez sélectionner au moins une culture !");
+            
+            DataManager.parametres.plantesChoisies = checked;
+            DataManager.save(DataManager.KEYS.PARAMETRES, DataManager.parametres);
+            
+            // Recalculer l'état hydrique global avec la nouvelle liste de plantes
+            GardenLogic.mettreAJourDeficits(DataManager, meteoActuelle);
+            
+            // Mettre à jour l'ensemble des modules d'affichage
+            renderCheckboxes();
+            renderMetrics();
+            renderHistory();
+            renderRecommendations();
+            renderChart();
+            
+            alert("⚙️ Réglages enregistrés ! La liste de vos plantes a été mise à jour.");
+            switchTab('tab-suivi');
+        }
+
         async function demarrerApplication() {
             DataManager.initDatabase();
             document.getElementById('global-status').innerText = `Connexion météo à ${CONFIG_JARDIN.location.nom}...`;
@@ -502,6 +564,7 @@
             renderMetrics();
             renderHistory();
             renderWeatherView(meteoActuelle);
+            renderSettingsView();
             renderRecommendations();
             renderChart();
         }

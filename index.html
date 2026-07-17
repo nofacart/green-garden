@@ -26,7 +26,7 @@
         <!-- BARRE D'ONGLETS -->
         <nav class="flex border-b border-slate-200 mb-8 space-x-2 overflow-x-auto" aria-label="Tabs">
             <button onclick="switchTab('tab-suivi')" id="btn-tab-suivi" class="tab-button border-b-2 border-green-600 px-4 py-2.5 text-sm font-medium text-green-700 focus:outline-none whitespace-nowrap">
-                📆 Suivi du jour
+                Direct du jour
             </button>
             <button onclick="switchTab('tab-historique')" id="btn-tab-historique" class="tab-button border-b-2 border-transparent px-4 py-2.5 text-sm font-medium text-slate-500 hover:text-slate-700 hover:border-slate-300 focus:outline-none whitespace-nowrap">
                 📜 Historique
@@ -59,7 +59,7 @@
                         <div>
                             <h2 class="text-lg font-bold text-slate-900 mb-2 flex items-center gap-2">💧 Arrosage manuel</h2>
                             <p class="text-slate-500 text-sm mb-4">Cochez les zones arrosées aujourd'hui (apport standard de 10mm).</p>
-                            <div id="plants-checkboxes" class="space-y-2 max-h-40 overflow-y-auto p-1 mb-4">
+                            <div id="plants-checkboxes" class="space-y-2 max-h-48 overflow-y-auto p-1 mb-4">
                                 <!-- Injecté dynamiquement par JS -->
                             </div>
                         </div>
@@ -141,13 +141,14 @@
                 </div>
             </div>
 
-            <!-- ONGLET 4 : RÉGLAGES -->
+            <!-- ONGLET 4 : RÉGLAGES & SAUVEGARDE -->
             <div id="tab-reglages" class="tab-content hidden space-y-6">
+                <!-- Section Gestion du Potager -->
                 <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
                     <h2 class="text-lg font-bold text-slate-900 mb-2">⚙️ Configuration de mon jardin</h2>
                     <p class="text-slate-500 text-sm mb-6">Sélectionnez les plantes cultivées dans votre jardin pour adapter le suivi et les graphiques.</p>
                     
-                    <div id="settings-plants-container" class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
+                    <div id="settings-plants-container" class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6 max-h-96 overflow-y-auto p-1">
                         <!-- Injecté dynamiquement par JS -->
                     </div>
                     
@@ -155,36 +156,88 @@
                         💾 Enregistrer mes plantes
                     </button>
                 </div>
+
+                <!-- SECTION SAUVEGARDE AMÉLIORÉE -->
+                <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
+                    <h2 class="text-lg font-bold text-slate-900 mb-2">🔄 Sauvegarde & Choix de l'emplacement (Cloud)</h2>
+                    <p class="text-slate-500 text-sm mb-4">
+                        Exportez vos données directement dans votre dossier Cloud synchro (Google Drive, Dropbox, iCloud...) pour y accéder sur mobile.
+                    </p>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <button onclick="uiExporterDonnees()" class="flex items-center justify-center gap-2 bg-slate-800 hover:bg-slate-900 text-white font-medium py-3 px-4 rounded-xl transition-colors shadow-sm text-sm">
+                            📤 Choisir la destination & Sauvegarder
+                        </button>
+                        <button onclick="uiImporterDonnees()" class="flex items-center justify-center gap-2 bg-blue-50 border border-blue-200 hover:bg-blue-100 text-blue-800 font-medium py-3 px-4 rounded-xl transition-colors shadow-sm text-sm">
+                            📥 Importer un fichier de sauvegarde
+                        </button>
+                    </div>
+                </div>
             </div>
         </main>
     </div>
 
     <!-- CODE SCRIPT GLOBAL UNIFIÉ -->
     <script>
+        function getLocalTodayString() {
+            return new Date().toLocaleDateString('fr-CA');
+        }
+
         // ==========================================
-        // 1. CONFIGURATION DU JARDIN
+        // 1. CONFIGURATION DU JARDIN & BASE DE DONNÉES
         // ==========================================
         const CONFIG_JARDIN = {
             location: { latitude: 43.65, longitude: 1.38, nom: "Beauzelle" },
             famillesPlantes: {
-                "Pelouse": { besoinEauStandardMm: 4, icone: "🌱" },
-                "Tomates": { besoinEauStandardMm: 5, icone: "🍅" },
-                "Aromatiques": { besoinEauStandardMm: 2, icone: "🌿" },
-                "Courgettes": { besoinEauStandardMm: 4, icone: "🥒" },
-                "Salades": { besoinEauStandardMm: 3, icone: "🥬" },
-                "Fruitiers": { besoinEauStandardMm: 3, icone: "🌳" }
+                "Pelouse": { besoinEauStandardMm: 4.0, icone: "🌱", favoris: [], maladies: "Fusariose" },
+                "Tomate": { besoinEauStandardMm: 4.6, icone: "🍅", favoris: ["Basilic", "Carotte", "Oignon"], maladies: "Mildiou, Cul noir" },
+                "Courgette": { besoinEauStandardMm: 4.2, icone: "🥒", favoris: ["Haricot", "Maïs"], maladies: "Oïdium, Mildiou" },
+                "Melon": { besoinEauStandardMm: 4.2, icone: "🍈", favoris: ["Maïs", "Radis"], maladies: "Oïdium, Pucerons" },
+                "Concombre": { besoinEauStandardMm: 4.2, icone: "🥒", favoris: ["Haricot", "Maïs", "Aneth"], maladies: "Mildiou, Oïdium" },
+                "Potimarron": { besoinEauStandardMm: 4.2, icone: "🎃", favoris: ["Maïs", "Haricot"], maladies: "Oïdium, Pucerons" },
+                "Haricot vert": { besoinEauStandardMm: 4.0, icone: "🫛", favoris: ["Carotte", "Concombre", "Maïs"], maladies: "Anthracnose, Rouille" },
+                "Pois": { besoinEauStandardMm: 4.0, icone: "𫫝", favoris: ["Carotte", "Navet", "Radis"], maladies: "Mildiou, Oïdium" },
+                "Fève": { besoinEauStandardMm: 4.0, icone: "𫫝", favoris: ["Chou", "Épinard"], maladies: "Rouille, Pucerons noirs" },
+                "Aubergine": { besoinEauStandardMm: 4.0, icone: "🍆", favoris: ["Haricot", "Poivron"], maladies: "Mildiou, Verticilliose" },
+                "Poivron": { besoinEauStandardMm: 4.0, icone: "🫑", favoris: ["Basilic", "Carotte"], maladies: "Mildiou, Pucerons" },
+                "Laitue": { besoinEauStandardMm: 4.0, icone: "🥬", favoris: ["Carotte", "Radis", "Fraise"], maladies: "Mildiou, Pucerons" },
+                "Épinard": { besoinEauStandardMm: 4.0, icone: "🍃", favoris: ["Fève", "Haricot"], maladies: "Mildiou, Pucerons" },
+                "Bette": { besoinEauStandardMm: 4.0, icone: "🥬", favoris: ["Carotte", "Radis"], maladies: "Mildiou, Pucerons" },
+                "Mâche": { besoinEauStandardMm: 4.0, icone: "🥬", favoris: ["Carotte", "Poireau"], maladies: "Mildiou" },
+                "Carotte": { besoinEauStandardMm: 3.6, icone: "🥕", favoris: ["Laitue", "Radis", "Romarin"], maladies: "Mouche de la carotte" },
+                "Radis": { besoinEauStandardMm: 3.6, icone: "🎯", favoris: ["Laitue", "Carotte", "Épinard"], maladies: "Pucerons, Altises" },
+                "Betterave": { besoinEauStandardMm: 3.6, icone: "🪵", favoris: ["Haricot", "Oignon"], maladies: "Cercosporiose" },
+                "Panais": { besoinEauStandardMm: 3.6, icone: "🥕", favoris: ["Haricot", "Oignon"], maladies: "Rouille" },
+                "Navet": { besoinEauStandardMm: 3.6, icone: "🧅", favoris: ["Pois", "Haricot"], maladies: "Altises, Hernie" },
+                "Thym": { besoinEauStandardMm: 2.8, icone: "🌿", favoris: ["Chou", "Carotte"], maladies: "Pourriture racinaire" },
+                "Romarin": { besoinEauStandardMm: 2.8, icone: "🌿", favoris: ["Carotte", "Haricot"], maladies: "Excès d'humidité" },
+                "Sauge": { besoinEauStandardMm: 2.8, icone: "🌿", favoris: ["Chou", "Carotte"], maladies: "Oïdium" },
+                "Origan": { besoinEauStandardMm: 2.8, icone: "🌿", favoris: ["Chou", "Tomate"], maladies: "Rare" },
+                "Basilic": { besoinEauStandardMm: 3.4, icone: "🌿", favoris: ["Tomate", "Poivron"], maladies: "Mildiou, Fusarium" },
+                "Menthe": { besoinEauStandardMm: 3.4, icone: "🌿", favoris: ["Chou", "Tomate"], maladies: "Rouille" },
+                "Coriandre": { besoinEauStandardMm: 3.4, icone: "🌿", favoris: ["Aneth", "Pomme de terre"], maladies: "Montée en graines rapide" },
+                "Persil": { besoinEauStandardMm: 3.4, icone: "🌿", favoris: ["Tomate", "Radis"], maladies: "Septoriose" },
+                "Cerfeuil": { besoinEauStandardMm: 3.4, icone: "🌿", favoris: ["Radis", "Laitue"], maladies: "Montée en graines rapide" },
+                "Chou": { besoinEauStandardMm: 3.8, icone: "🥦", favoris: ["Menthe", "Romarin", "Thym"], maladies: "Hernie, Pucerons" },
+                "Brocoli": { besoinEauStandardMm: 3.8, icone: "🥦", favoris: ["Pomme de terre", "Oignon"], maladies: "Hernie, Pucerons" },
+                "Chou-fleur": { besoinEauStandardMm: 3.8, icone: "🥦", favoris: ["Céleri", "Pomme de terre"], maladies: "Hernie, Pucerons" },
+                "Chou-rave": { besoinEauStandardMm: 3.8, icone: "🥦", favoris: ["Laitue", "Pois"], maladies: "Altises" },
+                "Oignon": { besoinEauStandardMm: 3.4, icone: "🧅", favoris: ["Carotte", "Laitue"], maladies: "Mildiou, Rouille" },
+                "Ail": { besoinEauStandardMm: 3.4, icone: "🧄", favoris: ["Carotte", "Tomate"], maladies: "Rouille, Mildiou" },
+                "Échalote": { besoinEauStandardMm: 3.4, icone: "🧅", favoris: ["Carotte", "Laitue"], maladies: "Mildiou" },
+                "Poireau": { besoinEauStandardMm: 3.4, icone: "🥬", favoris: ["Carotte", "Céleri"], maladies: "Mineuse, Rouille" },
+                "Fraise": { besoinEauStandardMm: 4.2, icone: "🍓", favoris: ["Laitue", "Épinard"], maladies: "Mildiou, Botrytis" }
             }
         };
 
         const HISTORIQUE_METEO_SECOURS = [
-            { date: new Date().toISOString().split('T')[0], rainMm: 0, maxTemp: 25 }
+            { date: getLocalTodayString(), rainMm: 0, maxTemp: 25 }
         ];
 
         let meteoActuelle = [];
         let monGraphiqueInstance = null;
 
         // ==========================================
-        // 2. LOGIQUE API MÉTÉO (weather_utils.py)
+        // 2. LOGIQUE API MÉTÉO
         // ==========================================
         const WeatherUtils = {
             async fetchWeather() {
@@ -209,7 +262,7 @@
         };
 
         // ==========================================
-        // 3. ENREGISTREMENT DE DONNÉES (data_manager.py)
+        // 3. ENREGISTREMENT DE DONNÉES
         // ==========================================
         const DataManager = {
             KEYS: { JOURNAL: 'jardin_journal', PARAMETRES: 'jardin_parametres', ETAT: 'jardin_etat' },
@@ -222,7 +275,7 @@
 
             initDatabase() {
                 this.journal = this.load(this.KEYS.JOURNAL, { arrosages: [], tontes: [] });
-                this.parametres = this.load(this.KEYS.PARAMETRES, { plantesChoisies: ["Pelouse", "Tomates", "Aromatiques"] });
+                this.parametres = this.load(this.KEYS.PARAMETRES, { plantesChoisies: ["Pelouse", "Tomate", "Courgette", "Basilic"] });
                 this.etat = this.load(this.KEYS.ETAT, { deficitsAccumules: {}, dernierCalcul: null });
             },
             sauvegarderJournal() { this.save(this.KEYS.JOURNAL, this.journal); },
@@ -230,18 +283,20 @@
         };
 
         // ==========================================
-        // 4. MOTEUR DE CALCUL MÉTIER (garden_logic.py)
+        // 4. MOTEUR DE CALCUL MÉTIER
         // ==========================================
         const GardenLogic = {
             mettreAJourDeficits(db, weatherHistory) {
-                const aujourdhui = new Date().toISOString().split('T')[0];
+                const aujourdhui = getLocalTodayString();
                 
                 db.parametres.plantesChoisies.forEach(p => {
-                    if (db.etat.deficitsAccumules[p] === undefined) db.etat.deficitsAccumules[p] = 0;
+                    db.etat.deficitsAccumules[p] = 0;
                 });
 
                 weatherHistory.forEach(meteo => {
                     const dateStr = meteo.date;
+                    if (dateStr > aujourdhui) return;
+
                     const pluie = meteo.rainMm;
                     const temp = meteo.maxTemp;
 
@@ -252,8 +307,8 @@
                         if (temp > 30) besoin *= 1.3;
                         else if (temp < 15)  besoin *= 0.7;
 
-                        const aArrose = db.journal.arrosages.some(evt => evt.date === dateStr && evt.plants.includes(plante));
-                        const apportManuel = aArrose ? 10 : 0;
+                        const nbrArrosages = db.journal.arrosages.filter(evt => evt.date === dateStr && evt.plants.includes(plante)).length;
+                        const apportManuel = nbrArrosages * 10;
 
                         let deficit = (db.etat.deficitsAccumules[plante] || 0) + besoin - pluie - apportManuel;
                         
@@ -292,7 +347,8 @@
             const container = document.getElementById('metrics-container');
             container.innerHTML = DataManager.parametres.plantesChoisies.map(p => {
                 const def = DataManager.etat.deficitsAccumules[p] || 0;
-                const icone = CONFIG_JARDIN.famillesPlantes[p]?.icone || "🌱";
+                const config = CONFIG_JARDIN.famillesPlantes[p] || {};
+                const icone = config.icone || "🌱";
                 
                 let colorClass = "text-emerald-600 bg-emerald-50 border-emerald-100";
                 let statusText = "Sol Humide 👍";
@@ -305,11 +361,20 @@
                     statusText = "⚠️ À surveiller";
                 }
 
+                const favorisTexte = config.favoris && config.favoris.length > 0 
+                    ? `<p class="text-[10px] text-slate-400 mt-2 italic">Amis : ${config.favoris.join(', ')}</p>` 
+                    : '';
+
                 return `
-                    <div class="p-4 rounded-xl border text-center ${colorClass.split(' ')[2]}">
-                        <span class="text-xs font-bold text-slate-500 block uppercase tracking-wider">${icone} ${p}</span>
-                        <span class="text-2xl font-black block my-1 ${colorClass.split(' ')[0]}">${def} mm</span>
-                        <span class="text-xs font-semibold px-2 py-0.5 rounded-full ${colorClass.split(' ')[1]} ${colorClass.split(' ')[0]}">${statusText}</span>
+                    <div class="p-4 rounded-xl border text-center ${colorClass.split(' ')[2]} flex flex-col justify-between">
+                        <div>
+                            <span class="text-xs font-bold text-slate-500 block uppercase tracking-wider">${icone} ${p}</span>
+                            <span class="text-2xl font-black block my-1 ${colorClass.split(' ')[0]}">${def} mm</span>
+                        </div>
+                        <div>
+                            <span class="text-xs font-semibold px-2 py-0.5 rounded-full ${colorClass.split(' ')[1]} ${colorClass.split(' ')[0]}">${statusText}</span>
+                            ${favorisTexte}
+                        </div>
                     </div>
                 `;
             }).join('');
@@ -369,7 +434,7 @@
         function renderRecommendations() {
             const container = document.getElementById('recommendations-container');
             const box = document.getElementById('recommendations-box');
-            const aujourdhuiStr = new Date().toISOString().split('T')[0];
+            const aujourdhuiStr = getLocalTodayString();
             const meteoAujourdhui = meteoActuelle.find(m => m.date === aujourdhuiStr) || { maxTemp: 22, rainMm: 0 };
             const derniereTonte = DataManager.journal.tontes.length > 0 ? DataManager.journal.tontes[DataManager.journal.tontes.length - 1] : null;
 
@@ -448,8 +513,8 @@
                     if (meteo.maxTemp > 30) besoin *= 1.3;
                     else if (meteo.maxTemp < 15) besoin *= 0.7;
 
-                    const aArrose = DataManager.journal.arrosages.some(evt => evt.date === meteo.date && evt.plants.includes(plante));
-                    const apportManuel = aArrose ? 10 : 0;
+                    const nbrArrosages = DataManager.journal.arrosages.filter(evt => evt.date === meteo.date && evt.plants.includes(plante)).length;
+                    const apportManuel = nbrArrosages * 10;
 
                     simulationDeficit = simulationDeficit + besoin - meteo.rainMm - apportManuel;
                     if (simulationDeficit < -5) simulationDeficit = -5;
@@ -457,11 +522,13 @@
                 });
 
                 let col = '#16a34a';
-                if (plante === 'Tomates') col = '#ea580c';
-                if (plante === 'Aromatiques') col = '#0d9488';
-                if (plante === 'Courgettes') col = '#84cc16';
-                if (plante === 'Salades') col = '#06b6d4';
-                if (plante === 'Fruitiers') col = '#65a30d';
+                const name = plante.toLowerCase();
+                if (name.includes('tomate')) col = '#ea580c';
+                else if (name.includes('courgette') || name.includes('concombre') || name.includes('melon')) col = '#84cc16';
+                else if (name.includes('basilic') || name.includes('menthe') || name.includes('persil')) col = '#0d9488';
+                else if (name.includes('fraise')) col = '#e11d48';
+                else if (name.includes('carotte') || name.includes('poivron')) col = '#f97316';
+                else if (name.includes('ail') || name.includes('oignon') || name.includes('poireau')) col = '#64748b';
 
                 return {
                     label: plante,
@@ -490,14 +557,97 @@
         }
 
         // ==========================================
-        // 8. ACTIONS UTILISATEUR & LANCEMENT
+        // 8. LOGIQUE D'IMPORT / EXPORT INTÉLLIGENT (CORRIGÉ)
+        // ==========================================
+        async function uiExporterDonnees() {
+            const packSauvegarde = {
+                journal: DataManager.load(DataManager.KEYS.JOURNAL, {}),
+                parametres: DataManager.load(DataManager.KEYS.PARAMETRES, {}),
+                etat: DataManager.load(DataManager.KEYS.ETAT, {})
+            };
+            const jsonStr = JSON.stringify(packSauvegarde, null, 2);
+
+            // TENTATIVE AVEC L'API MODERNE (Choix forcé de la destination)
+            if ('showSaveFilePicker' in window) {
+                try {
+                    const options = {
+                        suggestedName: `jardin_backup.json`,
+                        types: [{
+                            description: 'Sauvegarde Mon Jardin Connecté',
+                            accept: { 'application/json': ['.json'] },
+                        }],
+                    };
+                    // Ouvre l'explorateur natif pour cibler le dossier Cloud (Drive, iCloud...)
+                    const handle = await window.showSaveFilePicker(options);
+                    const writable = await handle.createWritable();
+                    await writable.write(jsonStr);
+                    await writable.close();
+                    alert("✅ Sauvegarde enregistrée avec succès dans le dossier choisi !");
+                    return;
+                } catch (err) {
+                    // Si l'utilisateur annule simplement la boîte de dialogue, on stoppe
+                    if (err.name === 'AbortError') return;
+                    console.warn("Échec showSaveFilePicker, bascule sur méthode classique:", err);
+                }
+            }
+            
+            // MÉTHODE CLASSIQUE FALLBACK (Pour mobile, Safari et Firefox)
+            const blob = new Blob([jsonStr], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            
+            const declencheur = document.createElement('a');
+            declencheur.href = url;
+            declencheur.download = `jardin_backup.json`;
+            declencheur.click();
+            
+            URL.revokeObjectURL(url);
+            alert("📤 Fichier généré ! Choisissez votre espace Cloud (Google Drive / iCloud / Fichiers) comme destination d'enregistrement.");
+        }
+
+        function uiImporterDonnees() {
+            const selecteurFichier = document.createElement('input');
+            selecteurFichier.type = 'file';
+            selecteurFichier.accept = '.json';
+            
+            selecteurFichier.onchange = evenement => {
+                const fichier = evenement.target.files[0];
+                if (!fichier) return;
+
+                const lecteur = new FileReader();
+                lecteur.onload = e => {
+                    try {
+                        const donnéesImportées = JSON.parse(e.target.result);
+                        
+                        if (donnéesImportées.journal && donnéesImportées.parametres && donnéesImportées.etat) {
+                            DataManager.save(DataManager.KEYS.JOURNAL, donnéesImportées.journal);
+                            DataManager.save(DataManager.KEYS.PARAMETRES, donnéesImportées.parametres);
+                            DataManager.save(DataManager.KEYS.ETAT, donnéesImportées.etat);
+                            
+                            alert("✅ Synchronisation réussie ! Les données ont été chargées.");
+                            demarrerApplication();
+                            switchTab('tab-suivi');
+                        } else {
+                            alert("❌ Le fichier sélectionné n'est pas une sauvegarde valide de l'application.");
+                        }
+                    } catch (erreur) {
+                        alert("❌ Erreur de lecture : Fichier corrompu ou illisible.");
+                    }
+                };
+                lecteur.readAsText(fichier);
+            };
+            
+            selecteurFichier.click();
+        }
+
+        // ==========================================
+        // 9. ACTIONS UTILISATEUR & LANCEMENT
         // ==========================================
         function uiEnregistrerArrosage() {
             const checked = Array.from(document.querySelectorAll('input[name="plants-watering"]:checked')).map(i => i.value);
             if (checked.length === 0) return alert("Choisissez au moins une zone !");
 
             DataManager.journal.arrosages.push({
-                date: new Date().toISOString().split('T')[0],
+                date: getLocalTodayString(),
                 plants: checked
             });
             DataManager.sauvegarderJournal();
@@ -513,7 +663,7 @@
         function uiEnregistrerTonte() {
             const h = document.getElementById('mow-height').value;
             DataManager.journal.tontes.push({
-                date: new Date().toISOString().split('T')[0],
+                date: getLocalTodayString(),
                 hauteur: parseFloat(h)
             });
             DataManager.sauvegarderJournal();
@@ -530,10 +680,8 @@
             DataManager.parametres.plantesChoisies = checked;
             DataManager.save(DataManager.KEYS.PARAMETRES, DataManager.parametres);
             
-            // Recalculer l'état hydrique global avec la nouvelle liste de plantes
             GardenLogic.mettreAJourDeficits(DataManager, meteoActuelle);
             
-            // Mettre à jour l'ensemble des modules d'affichage
             renderCheckboxes();
             renderMetrics();
             renderHistory();
@@ -569,7 +717,6 @@
             renderChart();
         }
 
-        // Lancement au chargement du fichier
         demarrerApplication();
     </script>
 </body>

@@ -13,3 +13,11 @@ Anciennement propulsé par Streamlit, ce projet fonctionne désormais à 100 % d
 ## 🚀 Installation & Déploiement
 1. Hébergé gratuitement via **GitHub Pages**.
 2. Utilisable instantanément sur Mobile ou Desktop.
+
+## 🔄 Sauvegarde et Synchronisation Cloud
+
+L'application est 100% locale, mais elle intègre désormais une gestion intelligente des sauvegardes grâce à l'**API File System Access** :
+
+* **Sur Ordinateur (Chrome, Edge, Opera) :** Le bouton "Exporter" ouvre l'explorateur natif de votre système. Vous pouvez sélectionner directement un dossier synchronisé (*Google Drive, OneDrive, Dropbox, iCloud*) et écraser votre ancien fichier `jardin_backup.json` pour éviter d'accumuler des doublons.
+* **Sur Mobile / Safari / Firefox :** L'application génère un fichier `.json` standard et sollicite le système d'exploitation (iOS/Android) pour vous permettre de le ranger dans votre application *Fichiers* ou *Drive*.
+* **Importation :** Le bouton "Importer" permet de charger instantanément ce même fichier pour synchroniser vos données sur un autre appareil.

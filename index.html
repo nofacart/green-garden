@@ -1,925 +1,513 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Registre — Portefeuille ETF</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-
-<style>
-  :root{
-    --ink:#10161d;
-    --paper:#171f28;
-    --paper-raised:#1c2530;
-    --rule:#2a3540;
-    --rule-soft:#232c36;
-    --text:#e9edf1;
-    --muted:#83909d;
-    --gain:#4fb8a6;
-    --loss:#c1614a;
-    --gold:#c9a15c;
-  }
-  *{box-sizing:border-box;}
-  @media (prefers-reduced-motion: reduce){
-    *{animation-duration:0.001ms !important; transition-duration:0.001ms !important;}
-  }
-  body, .root{
-    background:var(--ink);
-    color:var(--text);
-    font-family:'Inter', sans-serif;
-    margin:0;
-    padding:0;
-  }
-  .root{
-    max-width:820px;
-    margin:0 auto;
-    padding:28px 20px 80px;
-  }
-  .masthead{
-    display:flex;
-    justify-content:space-between;
-    align-items:flex-start;
-    border-bottom:1px solid var(--rule);
-    padding-bottom:18px;
-    margin-bottom:26px;
-  }
-  .masthead h1{
-    font-family:'Fraunces', serif;
-    font-optical-sizing:auto;
-    font-weight:600;
-    font-size:22px;
-    letter-spacing:0.02em;
-    margin:0 0 4px;
-    text-transform:uppercase;
-  }
-  .masthead .sub{
-    color:var(--muted);
-    font-size:13px;
-    font-family:'IBM Plex Mono', monospace;
-  }
-  .currency-picker{ display:flex; gap:4px; }
-  .currency-picker button{
-    background:transparent;
-    border:1px solid var(--rule);
-    color:var(--muted);
-    font-family:'IBM Plex Mono', monospace;
-    font-size:12px;
-    padding:4px 8px;
-    border-radius:3px;
-    cursor:pointer;
-  }
-  .currency-picker button.active{ color:var(--gold); border-color:var(--gold); }
-  button:focus-visible, input:focus-visible, select:focus-visible{
-    outline:2px solid var(--gold);
-    outline-offset:2px;
-  }
-
-  .hero{ padding:22px 0 28px; border-bottom:1px solid var(--rule); margin-bottom:28px; }
-  .hero .label{ font-size:12px; text-transform:uppercase; letter-spacing:0.12em; color:var(--muted); margin-bottom:10px; }
-  .hero .total{
-    font-family:'Fraunces', serif;
-    font-size:50px;
-    font-weight:500;
-    line-height:1;
-    display:flex;
-    align-items:baseline;
-    gap:16px;
-    flex-wrap:wrap;
-  }
-  .delta-badge{
-    font-family:'IBM Plex Mono', monospace;
-    font-size:14px;
-    padding:4px 9px;
-    border-radius:3px;
-    border:1px solid;
-  }
-  .delta-badge.gain{ color:var(--gain); border-color:var(--gain); background:rgba(79,184,166,0.08); }
-  .delta-badge.loss{ color:var(--loss); border-color:var(--loss); background:rgba(193,97,74,0.08); }
-  .delta-badge.flat{ color:var(--muted); border-color:var(--rule); }
-  .hero .asof{ font-family:'IBM Plex Mono', monospace; color:var(--muted); font-size:12px; margin-top:10px; }
-  .hero .pv-line{
-    font-family:'IBM Plex Mono', monospace;
-    font-size:13px;
-    color:var(--muted);
-    margin-top:8px;
-  }
-  .hero .pv-line .v{ font-weight:600; }
-  .hero .pv-line .v.pos{ color:var(--gain); }
-  .hero .pv-line .v.neg{ color:var(--loss); }
-
-  section{ margin-bottom:34px; }
-  .section-head{ display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; }
-  .section-head h2{
-    font-family:'Fraunces', serif;
-    font-size:16px;
-    font-weight:600;
-    text-transform:uppercase;
-    letter-spacing:0.08em;
-    margin:0;
-    color:var(--text);
-  }
-
-  .tabs{ display:flex; gap:2px; margin-bottom:16px; }
-  .tab{
-    background:var(--paper);
-    border:1px solid var(--rule);
-    color:var(--muted);
-    font-family:'IBM Plex Mono', monospace;
-    font-size:12px;
-    padding:7px 14px;
-    cursor:pointer;
-    border-radius:3px;
-  }
-  .tab.active{ color:var(--ink); background:var(--gold); border-color:var(--gold); font-weight:600; }
-
-  .chart-wrap{
-    background:var(--paper);
-    border:1px solid var(--rule);
-    border-radius:4px;
-    padding:14px 10px 6px;
-    overflow-x:auto;
-  }
-  .table-wrap{ overflow-x:auto; }
-
-  table.ledger{
-    width:100%;
-    border-collapse:collapse;
-    font-family:'IBM Plex Mono', monospace;
-    font-size:13px;
-    margin-top:12px;
-    min-width:560px;
-  }
-  table.ledger th{
-    text-align:left;
-    color:var(--muted);
-    font-weight:500;
-    font-size:11px;
-    text-transform:uppercase;
-    letter-spacing:0.06em;
-    padding:6px 8px;
-    border-bottom:1px solid var(--rule);
-    white-space:nowrap;
-  }
-  table.ledger td{ padding:8px 8px; border-bottom:1px solid var(--rule-soft); white-space:nowrap; }
-  table.ledger tr:last-child td{ border-bottom:none; }
-  .num{ text-align:right; font-variant-numeric:tabular-nums; }
-  .pos{ color:var(--gain); }
-  .neg{ color:var(--loss); }
-
-  .stamp{
-    display:inline-flex;
-    align-items:center;
-    justify-content:center;
-    font-family:'IBM Plex Mono', monospace;
-    font-size:11px;
-    font-weight:600;
-    letter-spacing:0.04em;
-    padding:3px 8px;
-    border-radius:2px;
-    border:1px dashed;
-    transform:rotate(-1.2deg);
-    text-transform:uppercase;
-    white-space:nowrap;
-  }
-  .theme-chip{
-    display:inline-block;
-    font-size:11px;
-    padding:2px 7px;
-    border-radius:9px;
-    background:var(--rule-soft);
-    color:var(--muted);
-    white-space:nowrap;
-  }
-
-  .alloc-bar-track{
-    width:90px;
-    height:7px;
-    background:var(--rule-soft);
-    border-radius:4px;
-    overflow:hidden;
-    display:inline-block;
-    vertical-align:middle;
-    margin-right:6px;
-  }
-  .alloc-bar-fill{ height:100%; border-radius:4px; }
-
-  .empty{
-    color:var(--muted);
-    font-size:13px;
-    padding:24px 0;
-    text-align:center;
-    border:1px dashed var(--rule);
-    border-radius:4px;
-  }
-
-  .btn{
-    background:var(--gold);
-    color:var(--ink);
-    border:none;
-    font-family:'Inter', sans-serif;
-    font-weight:600;
-    font-size:13px;
-    padding:9px 16px;
-    border-radius:3px;
-    cursor:pointer;
-  }
-  .btn.secondary{ background:transparent; color:var(--text); border:1px solid var(--rule); font-weight:500; }
-  .btn.ghost{ background:transparent; color:var(--muted); border:none; font-size:12px; text-decoration:underline; padding:4px; cursor:pointer; }
-  .btn.danger{ color:var(--loss); }
-  .row-actions{ display:flex; gap:10px; justify-content:flex-end; }
-
-  .form-card{
-    background:var(--paper-raised);
-    border:1px solid var(--rule);
-    border-radius:5px;
-    padding:18px;
-    margin-top:12px;
-  }
-  .form-card label{
-    display:block;
-    font-size:11px;
-    text-transform:uppercase;
-    letter-spacing:0.06em;
-    color:var(--muted);
-    margin-bottom:5px;
-  }
-  .form-card input{
-    background:var(--ink);
-    border:1px solid var(--rule);
-    color:var(--text);
-    font-family:'IBM Plex Mono', monospace;
-    font-size:13px;
-    padding:8px 10px;
-    border-radius:3px;
-    width:100%;
-  }
-  .entry-card{
-    border:1px solid var(--rule);
-    border-radius:4px;
-    padding:12px;
-    margin-bottom:10px;
-    background:var(--ink);
-  }
-  .entry-grid-1{ display:grid; grid-template-columns:1fr 1.4fr 1fr; gap:8px; margin-bottom:8px; }
-  .entry-grid-2{ display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; }
-  .entry-preview{
-    font-family:'IBM Plex Mono', monospace;
-    font-size:11px;
-    color:var(--muted);
-    margin-top:8px;
-  }
-  .entry-preview .pos{ color:var(--gain); }
-  .entry-preview .neg{ color:var(--loss); }
-  .entry-card-top{ display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
-  .entry-card-top span{ font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:0.06em; }
-  .rm-link{ background:none; border:none; color:var(--loss); font-size:11px; cursor:pointer; text-decoration:underline; }
-
-  .date-field{ margin-bottom:14px; max-width:220px; }
-  .form-actions{ display:flex; justify-content:space-between; align-items:center; margin-top:16px; }
-
-  ::placeholder{ color:#4a5560; }
-
-  @media (max-width:520px){
-    .hero .total{ font-size:36px; }
-    .entry-grid-1, .entry-grid-2{ grid-template-columns:1fr; }
-  }
-
-  @media (max-width:640px){
-    .masthead{ flex-wrap:wrap; gap:12px; }
-    table.ledger, table.ledger thead, table.ledger tbody, table.ledger th, table.ledger td, table.ledger tr{
-      display:block;
-    }
-    table.ledger{ min-width:0; }
-    table.ledger thead{ display:none; }
-    table.ledger tr{
-      border:1px solid var(--rule);
-      border-radius:5px;
-      padding:10px 12px;
-      margin-bottom:10px;
-    }
-    table.ledger tr:last-child{ margin-bottom:0; }
-    table.ledger td{
-      border-bottom:none;
-      display:flex;
-      justify-content:space-between;
-      align-items:center;
-      gap:10px;
-      padding:5px 0;
-      white-space:normal;
-      text-align:left;
-    }
-    table.ledger td.num{ text-align:right; }
-    table.ledger td::before{
-      content: attr(data-label);
-      color:var(--muted);
-      font-size:10px;
-      text-transform:uppercase;
-      letter-spacing:0.05em;
-      flex:0 0 auto;
-    }
-    table.ledger td.row-actions{ justify-content:flex-end; }
-    table.ledger td.row-actions::before{ content:''; }
-    .table-wrap{ overflow-x:visible; }
-  }
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mon Jardin Autonome</title>
+    <!-- Chargement des bibliothèques graphiques et CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
-<body>
+<body class="bg-slate-50 text-slate-800 antialiased font-sans">
 
-<div class="root" id="app"></div>
+    <div class="max-w-4xl mx-auto px-4 py-6">
+        
+        <!-- EN-TÊTE DE L'APPLICATION -->
+        <header class="flex flex-col sm:flex-row justify-between items-center border-b border-slate-200 pb-6 mb-6 gap-4">
+            <div class="text-center sm:text-left">
+                <h1 class="text-3xl font-extrabold text-green-700 tracking-tight">🌿 Mon Jardin Connecté</h1>
+                <p class="text-slate-500 text-sm mt-1">Version locale autonome — Zéro serveur</p>
+            </div>
+            <div id="global-status" class="bg-emerald-50 text-emerald-800 border border-emerald-200 rounded-full px-4 py-1.5 text-xs font-semibold shadow-sm">
+                Connexion météo...
+            </div>
+        </header>
 
-<script>
-(function(){
-  const PALETTE = ['#c9a15c','#4fb8a6','#c1614a','#6e8cae','#9b6b9e','#8a9a5b','#d4874f','#5a94b3'];
-  const CURRENCIES = ['€','$','£'];
+        <!-- BARRE D'ONGLETS -->
+        <nav class="flex border-b border-slate-200 mb-8 space-x-2" aria-label="Tabs">
+            <button onclick="switchTab('tab-suivi')" id="btn-tab-suivi" class="tab-button border-b-2 border-green-600 px-4 py-2.5 text-sm font-medium text-green-700 focus:outline-none">
+                📆 Suivi du jour
+            </button>
+            <button onclick="switchTab('tab-historique')" id="btn-tab-historique" class="tab-button border-b-2 border-transparent px-4 py-2.5 text-sm font-medium text-slate-500 hover:text-slate-700 hover:border-slate-300 focus:outline-none">
+                📜 Historique
+            </button>
+            <button onclick="switchTab('tab-meteo')" id="btn-tab-meteo" class="tab-button border-b-2 border-transparent px-4 py-2.5 text-sm font-medium text-slate-500 hover:text-slate-700 hover:border-slate-300 focus:outline-none">
+                🌤️ Météo & API
+            </button>
+        </nav>
 
-  let state = { snapshots: [], settings: { currency: '€' } };
-  let periodTab = 'month';
-  let etfTab = null;
-  let formOpen = false;
-  let editingId = null;
-  let formDate = todayISO();
-  let formApport = '0';
-  let formEntries = [ blankEntry() ];
+        <!-- CONTENU DES ONGLETS -->
+        <main>
+            <!-- ONGLET 1 : SUIVI DU JOUR -->
+            <div id="tab-suivi" class="tab-content block space-y-6">
+                
+                <!-- ZONE DES RECOMMANDATIONS DYNAMIQUES -->
+                <div id="recommendations-box" class="hidden bg-white rounded-2xl p-6 shadow-sm border border-slate-100 mb-6">
+                    <h2 class="text-lg font-bold text-slate-900 mb-3 flex items-center gap-2">💡 Les conseils du jardinier</h2>
+                    <div id="recommendations-container" class="space-y-3">
+                        <!-- Injecté dynamiquement par JS -->
+                    </div>
+                </div>
 
-  function blankEntry(){ return { numero:'', nom:'', libelle:'', quantite:'', pru:'', cours:'' }; }
-  function todayISO(){ return new Date().toISOString().slice(0,10); }
-  function uid(){ return 's' + Date.now() + Math.random().toString(36).slice(2,8); }
+                <!-- Grille de formulaires -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- Formulaire Arrosage -->
+                    <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 flex flex-col justify-between">
+                        <div>
+                            <h2 class="text-lg font-bold text-slate-900 mb-2 flex items-center gap-2">💧 Arrosage manuel</h2>
+                            <p class="text-slate-500 text-sm mb-4">Cochez les zones arrosées aujourd'hui (apport standard de 10mm).</p>
+                            <div id="plants-checkboxes" class="space-y-2 max-h-40 overflow-y-auto p-1 mb-4">
+                                <!-- Injecté dynamiquement par JS -->
+                            </div>
+                        </div>
+                        <button onclick="uiEnregistrerArrosage()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2.5 px-4 rounded-xl transition-colors shadow-sm mt-auto">
+                            💧 Enregistrer cet arrosage
+                        </button>
+                    </div>
 
-  // Backward/robust normalisation: fills in sane numbers, tolerates old data shape ({ticker,name,value})
-  function normalizeEntry(e){
-    const numero = e.numero || e.ticker || '';
-    const nom = e.nom || e.name || '';
-    const libelle = e.libelle || '';
-    let quantite = Number(e.quantite);
-    let pru = Number(e.pru);
-    let cours = Number(e.cours);
-    if(isNaN(quantite) || quantite === 0){
-      if(e.value !== undefined){ quantite = 1; cours = Number(e.value) || 0; pru = Number(e.value) || 0; }
-      else quantite = Number(e.quantite) || 0;
-    }
-    if(isNaN(cours)) cours = 0;
-    if(isNaN(pru)) pru = 0;
-    return { numero, nom, libelle, quantite, pru, cours };
-  }
+                    <!-- Formulaire Tonte -->
+                    <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 flex flex-col justify-between">
+                        <div>
+                            <h2 class="text-lg font-bold text-slate-900 mb-2 flex items-center gap-2">✂️ Entretien pelouse</h2>
+                            <p class="text-slate-500 text-sm mb-6">Indiquez la hauteur de coupe de la tonte du jour.</p>
+                            <div class="space-y-4 mb-6">
+                                <label class="block text-sm font-medium text-slate-700">
+                                    Hauteur retenue : <span id="height-val" class="font-bold text-green-600">5</span> cm
+                                </label>
+                                <input type="range" id="mow-height" min="2" max="10" step="1" value="5" 
+                                       oninput="document.getElementById('height-val').innerText = this.value"
+                                       class="w-full accent-green-600 cursor-pointer">
+                            </div>
+                        </div>
+                        <button onclick="uiEnregistrerTonte()" class="w-full bg-green-600 hover:bg-green-700 text-white font-medium py-2.5 px-4 rounded-xl transition-colors shadow-sm mt-auto">
+                            ✂️ J'ai tondu aujourd'hui
+                        </button>
+                    </div>
+                </div>
 
-  function tickerColor(code){
-    let h = 0;
-    const s = code || '?';
-    for(let i=0;i<s.length;i++) h = (h*31 + s.charCodeAt(i)) >>> 0;
-    return PALETTE[h % PALETTE.length];
-  }
+                <!-- Section indicateurs dynamiques -->
+                <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
+                    <h2 class="text-lg font-bold text-slate-900 mb-4">💧 État Hydrique du Sol (Déficits accumulés)</h2>
+                    <div id="metrics-container" class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        <!-- Injecté dynamiquement par JS -->
+                    </div>
+                </div>
 
-  function fmtMoney(v){
-    const n = new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(Math.round(v || 0));
-    return n + ' ' + state.settings.currency;
-  }
-  function fmtMoney2(v){
-    const n = new Intl.NumberFormat('fr-FR', { minimumFractionDigits:2, maximumFractionDigits: 2 }).format(v || 0);
-    return n + ' ' + state.settings.currency;
-  }
-  function fmtPct(v){
-    const sign = v > 0 ? '+' : '';
-    return sign + v.toFixed(1).replace('.', ',') + ' %';
-  }
-  function fmtDate(iso){
-    const d = new Date(iso + 'T00:00:00');
-    return d.toLocaleDateString('fr-FR', { day:'2-digit', month:'2-digit', year:'numeric' });
-  }
+                <!-- Graphique d'évolution Chart.js -->
+                <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
+                    <h2 class="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">📈 Évolution du déficit hydrique</h2>
+                    <div class="h-64 w-full relative">
+                        <canvas id="deficitsChart"></canvas>
+                    </div>
+                </div>
+            </div>
 
-  const STORAGE_KEY = 'registre-etf-portfolio-data';
+            <!-- ONGLET 2 : HISTORIQUE -->
+            <div id="tab-historique" class="tab-content hidden space-y-6">
+                <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
+                    <h2 class="text-lg font-bold text-slate-900 mb-1">📜 Journal des interventions</h2>
+                    <p class="text-slate-500 text-sm mb-6">Données persistantes stockées dans votre navigateur (LocalStorage).</p>
+                    
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse">
+                            <thead>
+                                <tr class="border-b border-slate-200 text-slate-400 text-xs font-semibold uppercase tracking-wider">
+                                    <th class="py-3 px-4">Date</th>
+                                    <th class="py-3 px-4">Type d'action</th>
+                                    <th class="py-3 px-4">Détails</th>
+                                </tr>
+                            </thead>
+                            <tbody id="table-history-body" class="text-sm divide-y divide-slate-100">
+                                <!-- Injecté dynamiquement par JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
 
-  async function loadData(){
-    try{
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if(raw){
-        const parsed = JSON.parse(raw);
-        if(parsed && Array.isArray(parsed.snapshots)){
-          state = {
-            snapshots: parsed.snapshots.map(s => ({ ...s, apport: Number(s.apport) || 0, entries: s.entries.map(normalizeEntry) })),
-            settings: parsed.settings || { currency:'€' }
-          };
-        }
-      }
-    }catch(e){ console.error('Lecture impossible, stockage local vide ou corrompu.', e); }
-    render();
-  }
-  async function saveData(){
-    try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
-    catch(e){ console.error('Erreur de sauvegarde locale', e); alert('La sauvegarde locale a échoué. Pensez à exporter vos données.'); }
-  }
+            <!-- ONGLET 3 : MÉTÉO -->
+            <div id="tab-meteo" class="tab-content hidden space-y-6">
+                <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
+                    <h2 class="text-lg font-bold text-slate-900 mb-4">🌤️ Données Météo Réelles (API Open-Meteo)</h2>
+                    <div class="space-y-4">
+                        <p class="text-sm text-slate-600">Historique des 3 derniers jours glissants récupéré en direct pour alimenter les calculs :</p>
+                        <div id="weather-list" class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+                            <!-- Injecté par JS -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
 
-  async function exportData(){
-    const json = JSON.stringify(state, null, 2);
-    const filename = 'registre-etf-sauvegarde-' + todayISO() + '.json';
-
-    // Navigateurs compatibles (Chrome / Edge / Opera) : fenêtre "Enregistrer sous..."
-    if(window.showSaveFilePicker){
-      try{
-        const handle = await window.showSaveFilePicker({
-          suggestedName: filename,
-          types: [{ description: 'Sauvegarde JSON', accept: { 'application/json': ['.json'] } }]
-        });
-        const writable = await handle.createWritable();
-        await writable.write(json);
-        await writable.close();
-        return;
-      }catch(e){
-        if(e && e.name === 'AbortError') return; // l'utilisateur a annulé, rien à faire
-        console.error('Échec de l’enregistrement via le sélecteur de fichier, repli sur le téléchargement classique.', e);
-      }
-    }
-
-    // Repli : téléchargement classique (Firefox, Safari, ou si l'API a échoué)
-    const blob = new Blob([json], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(url);
-  }
-
-  function importData(file){
-    const reader = new FileReader();
-    reader.onload = async (evt) => {
-      try{
-        const parsed = JSON.parse(evt.target.result);
-        if(!parsed || !Array.isArray(parsed.snapshots)) throw new Error('format invalide');
-        if(state.snapshots.length > 0){
-          if(!confirm('Cela va remplacer les données actuellement affichées par celles du fichier importé. Continuer ?')) return;
-        }
-        state = {
-          snapshots: parsed.snapshots.map(s => ({ ...s, apport: Number(s.apport) || 0, entries: s.entries.map(normalizeEntry) })),
-          settings: parsed.settings || { currency:'€' }
+    <!-- CODE SCRIPT GLOBAL UNIFIÉ -->
+    <script>
+        // ==========================================
+        // 1. CONFIGURATION DU JARDIN
+        // ==========================================
+        const CONFIG_JARDIN = {
+            location: { latitude: 43.65, longitude: 1.38, nom: "Beauzelle" },
+            famillesPlantes: {
+                "Pelouse": { besoinEauStandardMm: 4, icone: "🌱" },
+                "Tomates": { besoinEauStandardMm: 5, icone: "🍅" },
+                "Aromatiques": { besoinEauStandardMm: 2, icone: "🌿" }
+            }
         };
-        await saveData();
-        render();
-      }catch(e){
-        alert('Ce fichier ne semble pas être une sauvegarde valide du registre ETF.');
-      }
-    };
-    reader.readAsText(file);
-  }
 
-  function sortedSnapshots(){ return [...state.snapshots].sort((a,b) => a.date.localeCompare(b.date)); }
+        const HISTORIQUE_METEO_SECOURS = [
+            { date: new Date().toISOString().split('T')[0], rainMm: 0, maxTemp: 25 }
+        ];
 
-  function entryValue(e){ return (Number(e.quantite)||0) * (Number(e.cours)||0); }
-  function entryCost(e){ return (Number(e.quantite)||0) * (Number(e.pru)||0); }
-  function total(snapshot){ return snapshot.entries.reduce((s,e) => s + entryValue(e), 0); }
-  function totalCost(snapshot){ return snapshot.entries.reduce((s,e) => s + entryCost(e), 0); }
+        let meteoActuelle = [];
+        let monGraphiqueInstance = null;
 
-  // Cumul des apports/retraits, snapshot par snapshot, dans l'ordre chronologique
-  function cumulativeApports(asc){
-    const map = new Map();
-    let running = 0;
-    asc.forEach(s => { running += (Number(s.apport) || 0); map.set(s.id, running); });
-    return map;
-  }
+        // ==========================================
+        // 2. LOGIQUE API MÉTÉO (weather_utils.py)
+        // ==========================================
+        const WeatherUtils = {
+            async fetchWeather() {
+                const { latitude, longitude } = CONFIG_JARDIN.location;
+                const url = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&daily=temperature_2m_max,precipitation_sum&timezone=Europe/Paris&past_days=3`;
 
-  // Performance réelle = variation de valeur hors effet des apports/retraits
-  function realPerformance(totalNow, totalPrev, apportPeriode){
-    if(totalPrev === null || totalPrev === undefined || totalPrev === 0) return null;
-    const gainMarche = totalNow - totalPrev - apportPeriode;
-    return gainMarche / totalPrev * 100;
-  }
+                try {
+                    const response = await fetch(url);
+                    if (!response.ok) throw new Error("Erreur réseau");
+                    const data = await response.json();
+                    
+                    return data.daily.time.map((date, index) => ({
+                        date: date,
+                        rainMm: data.daily.precipitation_sum[index] || 0,
+                        maxTemp: Math.round(data.daily.temperature_2m_max[index])
+                    }));
+                } catch (error) {
+                    console.error("Échec API météo, bascule mode secours :", error);
+                    throw error;
+                }
+            }
+        };
 
-  // ---- Regroupement par période (bilans mensuels / trimestriels / annuels) ----
-  function periodKey(dateStr, granularity){
-    const [y,m] = dateStr.split('-').map(Number);
-    if(granularity === 'month') return y + '-' + String(m).padStart(2,'0');
-    if(granularity === 'quarter') return y + '-T' + (Math.ceil(m/3));
-    return String(y);
-  }
-  function periodLabel(key, granularity){
-    if(granularity === 'month'){
-      const [y,m] = key.split('-');
-      const d = new Date(Number(y), Number(m)-1, 1);
-      return d.toLocaleDateString('fr-FR', { month:'short', year:'numeric' });
-    }
-    if(granularity === 'quarter') return key.replace('-', ' ');
-    return key;
-  }
-  function groupByPeriod(granularity){
-    const asc = sortedSnapshots();
-    const cumApport = cumulativeApports(asc);
-    const map = new Map();
-    asc.forEach(s => { map.set(periodKey(s.date, granularity), s); });
-    return [...map.entries()].map(([key, snap]) => ({
-      key, label: periodLabel(key, granularity), date: snap.date, total: total(snap), cumApport: cumApport.get(snap.id) || 0
-    }));
-  }
+        // ==========================================
+        // 3. ENREGISTREMENT DE DONNÉES (data_manager.py)
+        // ==========================================
+        const DataManager = {
+            KEYS: { JOURNAL: 'jardin_journal', PARAMETRES: 'jardin_parametres', ETAT: 'jardin_etat' },
+            
+            load(key, defaultStruct) {
+                const data = localStorage.getItem(key);
+                return data ? JSON.parse(data) : defaultStruct;
+            },
+            save(key, data) { localStorage.setItem(key, JSON.stringify(data)); },
 
-  // ---- Graphique SVG ----
-  function renderChart(points, formatter){
-    formatter = formatter || fmtMoney;
-    if(points.length === 0) return '<div class="empty">Aucune donnée pour cette période.</div>';
-    if(points.length === 1) return '<div class="empty">Ajoutez au moins deux bilans pour voir une évolution.</div>';
-    const w = Math.max(360, points.length * 78);
-    const h = 150;
-    const padL = 46, padR = 16, padT = 16, padB = 14;
-    const vals = points.map(p => p.total);
-    const min = Math.min(...vals), max = Math.max(...vals);
-    const range = (max - min) || 1;
-    const innerW = w - padL - padR, innerH = h - padT - padB;
-    const x = i => padL + (innerW * (points.length === 1 ? 0.5 : i/(points.length-1)));
-    const y = v => padT + innerH - ((v - min)/range) * innerH;
+            initDatabase() {
+                this.journal = this.load(this.KEYS.JOURNAL, { arrosages: [], tontes: [] });
+                this.parametres = this.load(this.KEYS.PARAMETRES, { plantesChoisies: ["Pelouse", "Tomates", "Aromatiques"] });
+                this.etat = this.load(this.KEYS.ETAT, { deficitsAccumules: {}, dernierCalcul: null });
+            },
+            sauvegarderJournal() { this.save(this.KEYS.JOURNAL, this.journal); },
+            sauvegarderEtat() { this.save(this.KEYS.ETAT, this.etat); }
+        };
 
-    const path = points.map((p,i) => (i===0?'M':'L') + x(i).toFixed(1) + ',' + y(p.total).toFixed(1)).join(' ');
-    const areaPath = path + ' L' + x(points.length-1).toFixed(1) + ',' + (padT+innerH) + ' L' + x(0).toFixed(1) + ',' + (padT+innerH) + ' Z';
-    const dots = points.map((p,i) => {
-      const cx = x(i).toFixed(1), cy = y(p.total).toFixed(1);
-      return '<circle cx="'+cx+'" cy="'+cy+'" r="3.5" fill="#c9a15c"><title>'+p.label+' · '+formatter(p.total)+'</title></circle>';
-    }).join('');
-    const labels = points.map((p,i) => {
-      const cx = x(i).toFixed(1);
-      return '<text x="'+cx+'" y="'+(h-2)+'" font-size="10" fill="#83909d" text-anchor="middle" font-family="IBM Plex Mono, monospace">'+p.label+'</text>';
-    }).join('');
+        // ==========================================
+        // 4. MOTEUR DE CALCUL MÉTIER (garden_logic.py)
+        // ==========================================
+        const GardenLogic = {
+            mettreAJourDeficits(db, weatherHistory) {
+                const aujourdhui = new Date().toISOString().split('T')[0];
+                
+                db.parametres.plantesChoisies.forEach(p => {
+                    if (db.etat.deficitsAccumules[p] === undefined) db.etat.deficitsAccumules[p] = 0;
+                });
 
-    return '<svg width="'+w+'" height="'+h+'" viewBox="0 0 '+w+' '+h+'" role="img" aria-label="Évolution du portefeuille">'
-      + '<defs><linearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1">'
-      + '<stop offset="0%" stop-color="#c9a15c" stop-opacity="0.22"/>'
-      + '<stop offset="100%" stop-color="#c9a15c" stop-opacity="0"/></linearGradient></defs>'
-      + '<path d="'+areaPath+'" fill="url(#areaGrad)" stroke="none"/>'
-      + '<path d="'+path+'" fill="none" stroke="#c9a15c" stroke-width="2"/>'
-      + dots + labels + '</svg>';
-  }
+                weatherHistory.forEach(meteo => {
+                    const dateStr = meteo.date;
+                    const pluie = meteo.rainMm;
+                    const temp = meteo.maxTemp;
 
-  // ---- Rendu ----
-  function render(){
-    const app = document.getElementById('app');
-    const asc = sortedSnapshots();
-    const cumApportMap = cumulativeApports(asc);
-    const latest = asc[asc.length-1] || null;
-    const prev = asc[asc.length-2] || null;
-    const latestTotal = latest ? total(latest) : 0;
-    const prevTotal = prev ? total(prev) : null;
-    const latestApport = latest ? (Number(latest.apport) || 0) : 0;
-    const delta = (prevTotal !== null && prevTotal !== 0) ? ((latestTotal - prevTotal) / prevTotal * 100) : null;
-    const deltaClass = delta === null ? 'flat' : (delta > 0 ? 'gain' : (delta < 0 ? 'loss' : 'flat'));
-    const deltaArrow = delta === null ? '' : (delta > 0 ? ' ▲' : (delta < 0 ? ' ▼' : ' ='));
-    const realPerf = prev ? realPerformance(latestTotal, prevTotal, latestApport) : null;
-    const realPerfClass = realPerf === null ? 'flat' : (realPerf > 0 ? 'gain' : (realPerf < 0 ? 'loss' : 'flat'));
+                    db.parametres.plantesChoisies.forEach(plante => {
+                        const config = CONFIG_JARDIN.famillesPlantes[plante] || { besoinEauStandardMm: 3 };
+                        let besoin = config.besoinEauStandardMm;
 
-    const latestCost = latest ? totalCost(latest) : 0;
-    const latestPV = latestTotal - latestCost;
-    const latestPVPct = latestCost !== 0 ? (latestPV/latestCost*100) : null;
+                        if (temp > 30) besoin *= 1.3;
+                        else if (temp < 15)  besoin *= 0.7;
 
-    const periodPoints = groupByPeriod(periodTab);
-    const periodRows = periodPoints.map((p,i) => {
-      const prevP = periodPoints[i-1];
-      const pct = prevP && prevP.total !== 0 ? ((p.total - prevP.total)/prevP.total*100) : null;
-      const apportPeriode = prevP ? (p.cumApport - prevP.cumApport) : p.cumApport;
-      const realPct = prevP ? realPerformance(p.total, prevP.total, apportPeriode) : null;
-      return { ...p, pct, apportPeriode, realPct };
-    }).reverse();
+                        const aArrose = db.journal.arrosages.some(evt => evt.date === dateStr && evt.plants.includes(plante));
+                        const apportManuel = aArrose ? 10 : 0;
 
-    const descHistory = [...state.snapshots].sort((a,b) => b.date.localeCompare(a.date));
+                        let deficit = (db.etat.deficitsAccumules[plante] || 0) + besoin - pluie - apportManuel;
+                        
+                        if (deficit < -5) deficit = -5; 
+                        db.etat.deficitsAccumules[plante] = Math.round(deficit * 10) / 10;
+                    });
+                });
 
-    app.innerHTML = `
-      <div class="masthead">
-        <div>
-          <h1>Registre — Portefeuille ETF</h1>
-          <div class="sub">${latest ? 'dernier bilan : ' + fmtDate(latest.date) : 'aucun bilan enregistré'}</div>
-          <div class="sub" style="margin-top:3px; opacity:0.75;">Données stockées dans ce navigateur — pensez à exporter régulièrement.</div>
-        </div>
-        <div style="display:flex; align-items:center; gap:14px; flex-wrap:wrap;">
-          <div class="currency-picker">
-            ${CURRENCIES.map(c => `<button data-currency="${c}" class="${state.settings.currency===c?'active':''}">${c}</button>`).join('')}
-          </div>
-          <button class="btn ghost" id="btn-export" style="text-decoration:none; border:1px solid var(--rule); border-radius:3px; padding:5px 9px;">⭳ Exporter</button>
-          <label class="btn ghost" for="file-import" style="text-decoration:none; border:1px solid var(--rule); border-radius:3px; padding:5px 9px; cursor:pointer;">⭱ Importer</label>
-          <input type="file" id="file-import" accept="application/json" style="display:none;">
-        </div>
-      </div>
+                db.etat.dernierCalcul = aujourdhui;
+                db.sauvegarderEtat();
+            }
+        };
 
-      <div class="hero">
-        <div class="label">Valeur totale</div>
-        <div class="total">
-          ${fmtMoney(latestTotal)}
-          ${delta !== null ? `<span class="delta-badge ${deltaClass}">${fmtPct(delta)}${deltaArrow} depuis le dernier bilan</span>` : ''}
-        </div>
-        ${latest ? `<div class="asof">au ${fmtDate(latest.date)}</div>` : ''}
-        ${realPerf !== null ? `<div class="pv-line">Performance réelle (hors apports/retraits) : <span class="v ${realPerfClass==='gain'?'pos':(realPerfClass==='loss'?'neg':'')}">${fmtPct(realPerf)}</span>${latestApport !== 0 ? ` — apport net du dernier bilan : ${fmtMoney(latestApport)}` : ''}</div>` : ''}
-        ${latest && latestCost > 0 ? `<div class="pv-line">Plus/moins-value latente : <span class="v ${latestPV>=0?'pos':'neg'}">${fmtMoney(latestPV)} (${fmtPct(latestPVPct)})</span> — coût d'acquisition total : ${fmtMoney(latestCost)}</div>` : ''}
-      </div>
-
-      <section>
-        <div class="section-head"><h2>Bilans</h2></div>
-        <div class="tabs">
-          <button class="tab ${periodTab==='month'?'active':''}" data-tab="month">Mensuel</button>
-          <button class="tab ${periodTab==='quarter'?'active':''}" data-tab="quarter">Trimestriel</button>
-          <button class="tab ${periodTab==='year'?'active':''}" data-tab="year">Annuel</button>
-        </div>
-        <div class="chart-wrap">${renderChart(periodPoints)}</div>
-        ${periodRows.length ? `
-        <div class="table-wrap">
-        <table class="ledger">
-          <thead><tr><th>Période</th><th class="num">Valeur</th><th class="num">Variation</th><th class="num">Perf. réelle</th><th class="num">Apports</th></tr></thead>
-          <tbody>
-            ${periodRows.map(r => `
-              <tr>
-                <td data-label="Période">${r.label}</td>
-                <td class="num" data-label="Valeur">${fmtMoney(r.total)}</td>
-                <td class="num ${r.pct===null?'':(r.pct>0?'pos':(r.pct<0?'neg':''))}" data-label="Variation">${r.pct===null?'—':fmtPct(r.pct)}</td>
-                <td class="num ${r.realPct===null?'':(r.realPct>0?'pos':(r.realPct<0?'neg':''))}" data-label="Perf. réelle">${r.realPct===null?'—':fmtPct(r.realPct)}</td>
-                <td class="num" data-label="Apports">${r.apportPeriode ? fmtMoney(r.apportPeriode) : '—'}</td>
-              </tr>`).join('')}
-          </tbody>
-        </table>
-        </div>` : ''}
-      </section>
-
-      <section>
-        <div class="section-head"><h2>Répartition actuelle</h2></div>
-        ${latest ? renderAllocation(latest) : '<div class="empty">Ajoutez un bilan pour voir le détail de vos lignes.</div>'}
-      </section>
-
-      ${renderTickerHistorySection(asc)}
-
-      <section>
-        <div class="section-head">
-          <h2>Historique</h2>
-          ${!formOpen ? `<button class="btn" id="btn-add">+ Ajouter un bilan</button>` : ''}
-        </div>
-        ${formOpen ? renderForm() : ''}
-        ${descHistory.length ? `
-        <div class="table-wrap">
-        <table class="ledger" style="margin-top:${formOpen?18:0}px">
-          <thead><tr><th>Date</th><th class="num">Total</th><th class="num">Variation</th><th class="num">Perf. réelle</th><th class="num">Apport</th><th></th></tr></thead>
-          <tbody>
-            ${descHistory.map((s) => {
-              const idxAsc = asc.findIndex(x => x.id === s.id);
-              const p = idxAsc > 0 ? asc[idxAsc-1] : null;
-              const t = total(s);
-              const pt = p ? total(p) : null;
-              const pct = p ? ((t - pt)/(pt||1)*100) : null;
-              const apport = Number(s.apport) || 0;
-              const realPct = p ? realPerformance(t, pt, apport) : null;
-              return `<tr>
-                <td data-label="Date">${fmtDate(s.date)}</td>
-                <td class="num" data-label="Total">${fmtMoney(t)}</td>
-                <td class="num ${pct===null?'':(pct>0?'pos':(pct<0?'neg':''))}" data-label="Variation">${pct===null?'—':fmtPct(pct)}</td>
-                <td class="num ${realPct===null?'':(realPct>0?'pos':(realPct<0?'neg':''))}" data-label="Perf. réelle">${realPct===null?'—':fmtPct(realPct)}</td>
-                <td class="num" data-label="Apport">${apport ? fmtMoney(apport) : '—'}</td>
-                <td class="row-actions" data-label="">
-                  <button class="btn ghost" data-edit="${s.id}">modifier</button>
-                  <button class="btn ghost danger" data-del="${s.id}">supprimer</button>
-                </td>
-              </tr>`;
-            }).join('')}
-          </tbody>
-        </table>
-        </div>` : (!formOpen ? '<div class="empty">Aucun bilan pour l’instant. Ajoutez votre premier relevé de portefeuille.</div>' : '')}
-      </section>
-    `;
-    bindEvents();
-  }
-
-  function renderAllocation(snapshot){
-    const t = total(snapshot) || 1;
-    const rows = [...snapshot.entries].sort((a,b) => entryValue(b) - entryValue(a));
-    return `
-      <div class="table-wrap">
-      <table class="ledger">
-        <thead>
-          <tr>
-            <th>N° ETF</th><th>Nom</th><th>Libellé</th>
-            <th class="num">Quantité</th><th class="num">PRU</th><th class="num">Cours</th>
-            <th class="num">Valeur</th><th class="num">+/- value</th><th>Répartition</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${rows.map(e => {
-            const color = tickerColor(e.numero);
-            const v = entryValue(e);
-            const cost = entryCost(e);
-            const pv = v - cost;
-            const pvPct = cost !== 0 ? (pv/cost*100) : null;
-            const pct = (v / t * 100);
-            return `
-              <tr>
-                <td data-label="N° ETF"><span class="stamp" style="border-color:${color}; color:${color};">${e.numero || '—'}</span></td>
-                <td data-label="Nom">${e.nom || '—'}</td>
-                <td data-label="Libellé">${e.libelle ? `<span class="theme-chip">${e.libelle}</span>` : '—'}</td>
-                <td class="num" data-label="Quantité">${e.quantite || 0}</td>
-                <td class="num" data-label="PRU">${fmtMoney2(e.pru)}</td>
-                <td class="num" data-label="Cours">${fmtMoney2(e.cours)}</td>
-                <td class="num" data-label="Valeur">${fmtMoney(v)}</td>
-                <td class="num ${cost?(pv>=0?'pos':'neg'):''}" data-label="+/- value">${cost ? fmtMoney(pv) + ' (' + fmtPct(pvPct) + ')' : '—'}</td>
-                <td data-label="Répartition"><span class="alloc-bar-track"><span class="alloc-bar-fill" style="width:${pct.toFixed(1)}%; background:${color};"></span></span>${pct.toFixed(1).replace('.',',')}%</td>
-              </tr>`;
-          }).join('')}
-        </tbody>
-      </table>
-      </div>
-    `;
-  }
-
-  function renderTickerHistorySection(asc){
-    // Liste des tickers distincts, du plus récemment vu au plus ancien
-    const seen = new Map();
-    [...asc].reverse().forEach(s => s.entries.forEach(e => {
-      if(e.numero && !seen.has(e.numero)) seen.set(e.numero, e.nom || '');
-    }));
-    const tickers = [...seen.keys()];
-    if(tickers.length === 0) return '';
-    if(!etfTab || !tickers.includes(etfTab)) etfTab = tickers[0];
-
-    const points = asc
-      .map(s => {
-        const entry = s.entries.find(e => e.numero === etfTab);
-        return entry ? { label: fmtDate(s.date).slice(0,5), total: Number(entry.cours) || 0 } : null;
-      })
-      .filter(Boolean);
-
-    const first = points[0], last = points[points.length-1];
-    const variation = (first && last && first.total !== 0 && points.length > 1) ? ((last.total - first.total)/first.total*100) : null;
-
-    return `
-      <section>
-        <div class="section-head"><h2>Historique des cours par ETF</h2></div>
-        <div class="tabs">
-          ${tickers.map(tk => {
-            const color = tickerColor(tk);
-            return `<button class="tab ${etfTab===tk?'active':''}" data-etf-tab="${tk}" style="${etfTab===tk?`background:${color}; border-color:${color};`:`color:${color}; border-color:${color};`}">${tk}</button>`;
-          }).join('')}
-        </div>
-        <div class="chart-wrap">${renderChart(points, fmtMoney2)}</div>
-        ${last ? `<div class="pv-line" style="margin-top:10px;">Dernier cours connu : <span class="v">${fmtMoney2(last.total)}</span>${variation !== null ? ` — depuis le premier relevé : <span class="v ${variation>=0?'pos':'neg'}">${fmtPct(variation)}</span>` : ''}</div>` : ''}
-      </section>
-    `;
-  }
-
-  function renderForm(){
-    return `
-      <div class="form-card">
-        <div class="date-field">
-          <label for="f-date">Date du bilan</label>
-          <input type="date" id="f-date" value="${formDate}">
-        </div>
-        <div class="date-field">
-          <label for="f-apport">Apport net depuis le dernier bilan (+ versement / − retrait)</label>
-          <input type="number" id="f-apport" value="${formApport}" step="0.01">
-        </div>
-        <label style="margin-bottom:10px;">Lignes du portefeuille</label>
-        ${formEntries.map((e,i) => {
-          const v = entryValue(e), cost = entryCost(e), pv = v-cost;
-          const pvPct = cost !== 0 ? (pv/cost*100) : null;
-          return `
-          <div class="entry-card" data-row="${i}">
-            <div class="entry-card-top">
-              <span>Ligne ${i+1}</span>
-              ${formEntries.length > 1 ? `<button class="rm-link" data-rm="${i}">retirer</button>` : ''}
-            </div>
-            <div class="entry-grid-1">
-              <input type="text" placeholder="N° ETF (ex. CW8)" value="${e.numero}" data-field="numero" data-row="${i}" maxlength="16">
-              <input type="text" placeholder="Nom (ex. Amundi MSCI World)" value="${e.nom}" data-field="nom" data-row="${i}">
-              <input type="text" placeholder="Libellé (ex. Monde, Eau...)" value="${e.libelle}" data-field="libelle" data-row="${i}">
-            </div>
-            <div class="entry-grid-2">
-              <div><label style="margin-bottom:2px;">Quantité</label><input type="number" value="${e.quantite}" data-field="quantite" data-row="${i}" step="1" min="0"></div>
-              <div><label style="margin-bottom:2px;">PRU</label><input type="number" value="${e.pru}" data-field="pru" data-row="${i}" step="0.01" min="0"></div>
-              <div><label style="margin-bottom:2px;">Cours</label><input type="number" value="${e.cours}" data-field="cours" data-row="${i}" step="0.01" min="0"></div>
-            </div>
-            ${(e.quantite && e.cours) ? `<div class="entry-preview">Valeur : ${fmtMoney(v)}${cost ? ` — +/- value : <span class="${pv>=0?'pos':'neg'}">${fmtMoney(pv)} (${fmtPct(pvPct)})</span>` : ''}</div>` : ''}
-          </div>`;
-        }).join('')}
-        <button class="btn secondary" id="btn-add-row" style="margin-top:2px;">+ Ajouter une ligne</button>
-        <div class="form-actions">
-          <button class="btn ghost" id="btn-cancel">Annuler</button>
-          <button class="btn" id="btn-save">Enregistrer le bilan</button>
-        </div>
-      </div>
-    `;
-  }
-
-  function bindEvents(){
-    const app = document.getElementById('app');
-
-    app.querySelectorAll('[data-currency]').forEach(btn => {
-      btn.onclick = () => { state.settings.currency = btn.dataset.currency; saveData(); render(); };
-    });
-
-    const exportBtn = app.querySelector('#btn-export');
-    if(exportBtn) exportBtn.onclick = exportData;
-
-    const importInput = app.querySelector('#file-import');
-    if(importInput) importInput.onchange = (e) => {
-      const file = e.target.files[0];
-      if(file) importData(file);
-      e.target.value = '';
-    };
-    app.querySelectorAll('[data-tab]').forEach(btn => {
-      btn.onclick = () => { periodTab = btn.dataset.tab; render(); };
-    });
-
-    const addBtn = app.querySelector('#btn-add');
-    if(addBtn) addBtn.onclick = () => {
-      formOpen = true;
-      editingId = null;
-      formDate = todayISO();
-      formApport = '0';
-      const asc = sortedSnapshots();
-      const lastSnapshot = asc[asc.length-1];
-      formEntries = lastSnapshot
-        ? lastSnapshot.entries.map(e => ({ numero:e.numero, nom:e.nom, libelle:e.libelle||'', quantite:e.quantite, pru:e.pru, cours:e.cours }))
-        : [blankEntry()];
-      render();
-    };
-
-    app.querySelectorAll('[data-edit]').forEach(btn => {
-      btn.onclick = () => {
-        const s = state.snapshots.find(x => x.id === btn.dataset.edit);
-        if(!s) return;
-        editingId = s.id;
-        formDate = s.date;
-        formApport = String(s.apport || 0);
-        formEntries = s.entries.map(e => ({ numero:e.numero, nom:e.nom, libelle:e.libelle||'', quantite:e.quantite, pru:e.pru, cours:e.cours }));
-        formOpen = true;
-        render();
-      };
-    });
-
-    app.querySelectorAll('[data-del]').forEach(btn => {
-      btn.onclick = () => {
-        if(!confirm('Supprimer ce bilan ?')) return;
-        state.snapshots = state.snapshots.filter(x => x.id !== btn.dataset.del);
-        saveData(); render();
-      };
-    });
-
-    const cancelBtn = app.querySelector('#btn-cancel');
-    if(cancelBtn) cancelBtn.onclick = () => { formOpen = false; render(); };
-
-    const dateInput = app.querySelector('#f-date');
-    if(dateInput) dateInput.onchange = (e) => { formDate = e.target.value; };
-
-    const apportInput = app.querySelector('#f-apport');
-    if(apportInput) apportInput.oninput = (e) => { formApport = e.target.value; };
-
-    app.querySelectorAll('[data-etf-tab]').forEach(btn => {
-      btn.onclick = () => { etfTab = btn.dataset.etfTab; render(); };
-    });
-
-    app.querySelectorAll('[data-field]').forEach(input => {
-      input.oninput = (e) => {
-        const row = Number(e.target.dataset.row);
-        const field = e.target.dataset.field;
-        formEntries[row][field] = field === 'numero' ? e.target.value.toUpperCase() : e.target.value;
-      };
-      input.onblur = () => { render(); }; // met à jour l'aperçu valeur / +/- value sans casser la saisie en cours
-    });
-
-    app.querySelectorAll('[data-rm]').forEach(btn => {
-      btn.onclick = () => {
-        const row = Number(btn.dataset.rm);
-        if(formEntries.length > 1){ formEntries.splice(row,1); render(); }
-      };
-    });
-
-    const addRowBtn = app.querySelector('#btn-add-row');
-    if(addRowBtn) addRowBtn.onclick = () => { formEntries.push(blankEntry()); render(); };
-
-    const saveBtn = app.querySelector('#btn-save');
-    if(saveBtn) saveBtn.onclick = async () => {
-      const cleaned = formEntries
-        .filter(e => e.numero.trim() !== '' && e.quantite !== '' && !isNaN(Number(e.quantite)) && e.cours !== '' && !isNaN(Number(e.cours)))
-        .map(e => ({
-          numero: e.numero.trim().toUpperCase(),
-          nom: (e.nom||'').trim(),
-          libelle: (e.libelle||'').trim(),
-          quantite: Number(e.quantite),
-          pru: Number(e.pru) || 0,
-          cours: Number(e.cours)
-        }));
-      if(cleaned.length === 0){ alert('Ajoutez au moins une ligne avec un n° ETF, une quantité et un cours.'); return; }
-      if(!formDate){ alert('Choisissez une date pour ce bilan.'); return; }
-      const apportValue = Number(formApport) || 0;
-
-      if(editingId){
-        const idx = state.snapshots.findIndex(s => s.id === editingId);
-        if(idx > -1) state.snapshots[idx] = { id: editingId, date: formDate, apport: apportValue, entries: cleaned };
-      } else {
-        const existing = state.snapshots.find(s => s.date === formDate);
-        if(existing){
-          if(!confirm('Un bilan existe déjà à cette date. Le remplacer ?')) return;
-          existing.entries = cleaned;
-          existing.apport = apportValue;
-        } else {
-          state.snapshots.push({ id: uid(), date: formDate, apport: apportValue, entries: cleaned });
+        // ==========================================
+        // 5. RENDU DE L'INTERFACE & COMPOSANTS
+        // ==========================================
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.replace('block', 'hidden'));
+            document.getElementById(tabId).classList.replace('hidden', 'block');
+            document.querySelectorAll('.tab-button').forEach(b => b.classList.remove('border-green-600', 'text-green-700'));
+            
+            document.getElementById('btn-' + tabId).classList.add('border-green-600', 'text-green-700');
         }
-      }
-      formOpen = false; editingId = null;
-      await saveData();
-      render();
-    };
-  }
 
-  loadData();
-})();
-</script>
+        function renderCheckboxes() {
+            const container = document.getElementById('plants-checkboxes');
+            container.innerHTML = DataManager.parametres.plantesChoisies.map(p => `
+                <label class="flex items-center gap-3 p-2 hover:bg-slate-50 rounded-xl cursor-pointer transition-colors border border-transparent hover:border-slate-100">
+                    <input type="checkbox" name="plants-watering" value="${p}" checked class="w-4 h-4 text-blue-600 accent-blue-600 rounded">
+                    <span class="text-sm font-medium text-slate-700">${CONFIG_JARDIN.famillesPlantes[p]?.icone || "🌱"} ${p}</span>
+                </label>
+            `).join('');
+        }
+
+        function renderMetrics() {
+            const container = document.getElementById('metrics-container');
+            container.innerHTML = DataManager.parametres.plantesChoisies.map(p => {
+                const def = DataManager.etat.deficitsAccumules[p] || 0;
+                const icone = CONFIG_JARDIN.famillesPlantes[p]?.icone || "🌱";
+                
+                let colorClass = "text-emerald-600 bg-emerald-50 border-emerald-100";
+                let statusText = "Sol Humide 👍";
+                
+                if (def > 4) {
+                    colorClass = "text-red-600 bg-red-50 border-red-100";
+                    statusText = "🚨 Arrosage urgent !";
+                } else if (def > 0) {
+                    colorClass = "text-amber-600 bg-amber-50 border-amber-100";
+                    statusText = "⚠️ À surveiller";
+                }
+
+                return `
+                    <div class="p-4 rounded-xl border text-center ${colorClass.split(' ')[2]}">
+                        <span class="text-xs font-bold text-slate-500 block uppercase tracking-wider">${icone} ${p}</span>
+                        <span class="text-2xl font-black block my-1 ${colorClass.split(' ')[0]}">${def} mm</span>
+                        <span class="text-xs font-semibold px-2 py-0.5 rounded-full ${colorClass.split(' ')[1]} ${colorClass.split(' ')[0]}">${statusText}</span>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function renderHistory() {
+            const tbody = document.getElementById('table-history-body');
+            const evenements = [
+                ...DataManager.journal.arrosages.map(a => ({ date: a.date, type: "💧 Arrosage", details: a.plants.join(', ') })),
+                ...DataManager.journal.tontes.map(t => ({ date: t.date, type: "✂️ Tonte", details: `Hauteur : ${t.hauteur} cm` }))
+            ].sort((a, b) => b.date.localeCompare(a.date));
+
+            if (evenements.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="3" class="py-4 text-center text-slate-400 italic">Aucune action enregistrée.</td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = evenements.map(evt => `
+                <tr class="hover:bg-slate-50 transition-colors">
+                    <td class="py-3 px-4 font-medium text-slate-600">${evt.date}</td>
+                    <td class="py-3 px-4 font-semibold text-slate-900">${evt.type}</td>
+                    <td class="py-3 px-4 text-slate-500">${evt.details}</td>
+                </tr>
+            `).join('');
+        }
+
+        function renderWeatherView(donneesMeteo) {
+            const container = document.getElementById('weather-list');
+            container.innerHTML = donneesMeteo.map(m => `
+                <div class="bg-slate-100 p-3 rounded-xl border border-slate-200">
+                    <p class="font-bold text-slate-700">${m.date}</p>
+                    <p class="text-amber-700">🌡️ Max : ${m.maxTemp}°C</p>
+                    <p class="text-blue-700">🌧️ Pluie : ${m.rainMm} mm</p>
+                </div>
+            `).join('');
+        }
+
+        // ==========================================
+        // 6. SYSTÈME DE CONSEILS
+        // ==========================================
+        function renderRecommendations() {
+            const container = document.getElementById('recommendations-container');
+            const box = document.getElementById('recommendations-box');
+            const aujourdhuiStr = new Date().toISOString().split('T')[0];
+            const meteoAujourdhui = meteoActuelle.find(m => m.date === aujourdhuiStr) || { maxTemp: 22, rainMm: 0 };
+            const derniereTonte = DataManager.journal.tontes.length > 0 ? DataManager.journal.tontes[DataManager.journal.tontes.length - 1] : null;
+
+            let conseilsHTML = [];
+
+            if (meteoAujourdhui.maxTemp > 30) {
+                conseilsHTML.push(`
+                    <div class="flex items-start gap-3 p-3 bg-amber-50 text-amber-900 rounded-xl border border-amber-200 text-sm">
+                        <span>☀️</span>
+                        <div><strong>Forte chaleur (${meteoAujourdhui.maxTemp}°C) :</strong> Évaporation maximale. Arrosez tard le soir pour économiser l'eau.</div>
+                    </div>
+                `);
+            }
+
+            let plantesEnSouffrance = [];
+            DataManager.parametres.plantesChoisies.forEach(p => {
+                if ((DataManager.etat.deficitsAccumules[p] || 0) > 4) plantesEnSouffrance.push(p);
+            });
+
+            if (plantesEnSouffrance.length > 0) {
+                conseilsHTML.push(`
+                    <div class="flex items-start gap-3 p-3 bg-red-50 text-red-900 rounded-xl border border-red-200 text-sm">
+                        <span>🚨</span>
+                        <div><strong>Stress hydrique détecté :</strong> Le sol est trop sec pour : <span class="font-bold underline">${plantesEnSouffrance.join(', ')}</span>. Arrosage requis.</div>
+                    </div>
+                `);
+            }
+
+            if (derniereTonte) {
+                if (derniereTonte.hauteur < 4 && meteoAujourdhui.maxTemp > 28) {
+                    conseilsHTML.push(`
+                        <div class="flex items-start gap-3 p-3 bg-orange-50 text-orange-900 rounded-xl border border-orange-200 text-sm">
+                            <span>⚠️</span>
+                            <div><strong>Alerte tonte rase :</strong> Votre tonte de ${derniereTonte.hauteur} cm expose les racines au soleil. Laissez pousser pour garder la fraîcheur.</div>
+                        </div>
+                    `);
+                } else if (derniereTonte.hauteur >= 7) {
+                    conseilsHTML.push(`
+                        <div class="flex items-start gap-3 p-3 bg-green-50 text-green-900 rounded-xl border border-green-200 text-sm">
+                            <span>🌾</span>
+                            <div><strong>Excellente hauteur :</strong> Votre gazon à ${derniereTonte.hauteur} cm protège l'humidité naturelle du sol.</div>
+                        </div>
+                    `);
+                }
+            }
+
+            if (conseilsHTML.length === 0) {
+                conseilsHTML.push(`
+                    <div class="flex items-start gap-3 p-3 bg-emerald-50 text-emerald-900 rounded-xl border border-emerald-200 text-sm">
+                        <span>✨</span>
+                        <div><strong>Jardin équilibré :</strong> Aucune alerte. Les niveaux d'eau sont parfaits. Bon jardinage !</div>
+                    </div>
+                `);
+            }
+
+            container.innerHTML = conseilsHTML.join('');
+            box.classList.replace('hidden', 'block');
+        }
+
+        // ==========================================
+        // 7. GRAPHIQUE INTERACTIF (Chart.js)
+        // ==========================================
+        function renderChart() {
+            const ctx = document.getElementById('deficitsChart').getContext('2d');
+            if (monGraphiqueInstance) monGraphiqueInstance.destroy();
+
+            const labelsDates = meteoActuelle.map(m => m.date);
+            const datasetsPlantes = DataManager.parametres.plantesChoisies.map(plante => {
+                let pointsDeficit = [];
+                let simulationDeficit = 0;
+
+                meteoActuelle.forEach(meteo => {
+                    const config = CONFIG_JARDIN.famillesPlantes[plante] || { besoinEauStandardMm: 3 };
+                    let besoin = config.besoinEauStandardMm;
+
+                    if (meteo.maxTemp > 30) besoin *= 1.3;
+                    else if (meteo.maxTemp < 15) besoin *= 0.7;
+
+                    const aArrose = DataManager.journal.arrosages.some(evt => evt.date === meteo.date && evt.plants.includes(plante));
+                    const apportManuel = aArrose ? 10 : 0;
+
+                    simulationDeficit = simulationDeficit + besoin - meteo.rainMm - apportManuel;
+                    if (simulationDeficit < -5) simulationDeficit = -5;
+                    pointsDeficit.push(Math.round(simulationDeficit * 10) / 10);
+                });
+
+                let col = '#16a34a';
+                if (plante === 'Tomates') col = '#ea580c';
+                if (plante === 'Aromatiques') col = '#0d9488';
+
+                return {
+                    label: plante,
+                    data: pointsDeficit,
+                    borderColor: col,
+                    backgroundColor: col + '10',
+                    borderWidth: 3,
+                    tension: 0.3,
+                    pointBackgroundColor: col,
+                    pointRadius: 4
+                };
+            });
+
+            monGraphiqueInstance = new Chart(ctx, {
+                type: 'line',
+                data: { labels: labelsDates, datasets: datasetsPlantes },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: { title: { display: true, text: 'Déficit (mm)' }, grid: { color: '#f1f5f9' } },
+                        x: { grid: { display: false } }
+                    }
+                }
+            });
+        }
+
+        // ==========================================
+        // 8. ACTIONS UTILISATEUR & LANCEMENT
+        // ==========================================
+        function uiEnregistrerArrosage() {
+            const checked = Array.from(document.querySelectorAll('input[name="plants-watering"]:checked')).map(i => i.value);
+            if (checked.length === 0) return alert("Choisissez au moins une zone !");
+
+            DataManager.journal.arrosages.push({
+                date: new Date().toISOString().split('T')[0],
+                plants: checked
+            });
+            DataManager.sauvegarderJournal();
+            
+            GardenLogic.mettreAJourDeficits(DataManager, meteoActuelle);
+            renderMetrics();
+            renderHistory();
+            renderRecommendations();
+            renderChart();
+            alert("💧 Arrosage enregistré !");
+        }
+
+        function uiEnregistrerTonte() {
+            const h = document.getElementById('mow-height').value;
+            DataManager.journal.tontes.push({
+                date: new Date().toISOString().split('T')[0],
+                hauteur: parseFloat(h)
+            });
+            DataManager.sauvegarderJournal();
+            renderHistory();
+            renderRecommendations();
+            renderChart();
+            alert(`✂️ Tonte à ${h} cm enregistrée !`);
+        }
+
+        async function demarrerApplication() {
+            DataManager.initDatabase();
+            document.getElementById('global-status').innerText = `Connexion météo à ${CONFIG_JARDIN.location.nom}...`;
+
+            try {
+                meteoActuelle = await WeatherUtils.fetchWeather();
+                document.getElementById('global-status').className = "bg-emerald-50 text-emerald-800 border border-emerald-200 rounded-full px-4 py-1.5 text-xs font-semibold shadow-sm";
+                document.getElementById('global-status').innerText = `☀️ Connecté • ${CONFIG_JARDIN.location.nom}`;
+            } catch (e) {
+                meteoActuelle = HISTORIQUE_METEO_SECOURS;
+                document.getElementById('global-status').className = "bg-amber-50 text-amber-800 border border-amber-200 rounded-full px-4 py-1.5 text-xs font-semibold shadow-sm";
+                document.getElementById('global-status').innerText = `⚠️ Mode hors-ligne`;
+            }
+
+            GardenLogic.mettreAJourDeficits(DataManager, meteoActuelle);
+            
+            renderCheckboxes();
+            renderMetrics();
+            renderHistory();
+            renderWeatherView(meteoActuelle);
+            renderRecommendations();
+            renderChart();
+        }
+
+        // Lancement au chargement du fichier
+        demarrerApplication();
+    </script>
 </body>
 </html>

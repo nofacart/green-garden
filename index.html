@@ -31,9 +31,6 @@
             <button onclick="switchTab('tab-historique')" id="btn-tab-historique" class="tab-button border-b-2 border-transparent px-4 py-2.5 text-sm font-medium text-slate-500 hover:text-slate-700 hover:border-slate-300 focus:outline-none whitespace-nowrap">
                 📜 Historique
             </button>
-            <button onclick="switchTab('tab-meteo')" id="btn-tab-meteo" class="tab-button border-b-2 border-transparent px-4 py-2.5 text-sm font-medium text-slate-500 hover:text-slate-700 hover:border-slate-300 focus:outline-none whitespace-nowrap">
-                🌤️ Météo & API
-            </button>
             <button onclick="switchTab('tab-reglages')" id="btn-tab-reglages" class="tab-button border-b-2 border-transparent px-4 py-2.5 text-sm font-medium text-slate-500 hover:text-slate-700 hover:border-slate-300 focus:outline-none whitespace-nowrap">
                 ⚙️ Réglages
             </button>
@@ -44,6 +41,13 @@
             <!-- ONGLET 1 : SUIVI DU JOUR -->
             <div id="tab-suivi" class="tab-content block space-y-6">
                 
+                <!-- TABLEAU DE BORD RAPIDE -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                    <div id="dashboard-summary" class="col-span-full grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <!-- Injecté dynamiquement par JS -->
+                    </div>
+                </div>
+
                 <!-- ZONE DES RECOMMANDATIONS DYNAMIQUES -->
                 <div id="recommendations-box" class="hidden bg-white rounded-2xl p-6 shadow-sm border border-slate-100 mb-6">
                     <h2 class="text-lg font-bold text-slate-900 mb-3 flex items-center gap-2">💡 Les conseils du jardinier</h2>
@@ -75,7 +79,14 @@
                             <p class="text-slate-500 text-sm mb-6">Indiquez la hauteur de coupe de la tonte du jour.</p>
                             <div class="space-y-4 mb-6">
                                 <label class="block text-sm font-medium text-slate-700">
-                                    Hauteur retenue : <span id="height-val" class="font-bold text-green-600">5</span> cm
+                                    Seuil d'intervention : <span id="threshold-val" class="font-bold text-orange-600">7</span> cm
+                                </label>
+                                <input type="range" id="mow-threshold" min="4" max="12" step="1" value="7"
+                                       oninput="document.getElementById('threshold-val').innerText = this.value"
+                                       class="w-full accent-orange-600 cursor-pointer">
+
+                                <label class="block text-sm font-medium text-slate-700">
+                                    Hauteur cible après tonte : <span id="height-val" class="font-bold text-green-600">5</span> cm
                                 </label>
                                 <input type="range" id="mow-height" min="2" max="10" step="1" value="5" 
                                        oninput="document.getElementById('height-val').innerText = this.value"
@@ -93,6 +104,18 @@
                     <h2 class="text-lg font-bold text-slate-900 mb-4">💧 État Hydrique du Sol (Déficits accumulés)</h2>
                     <div id="metrics-container" class="grid grid-cols-1 sm:grid-cols-3 gap-4">
                         <!-- Injecté dynamiquement par JS -->
+                    </div>
+                </div>
+
+                <!-- Prévisions météo intégrées au suivi -->
+                <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100">
+                    <div class="flex items-center justify-between gap-3 mb-3">
+                        <h2 class="text-lg font-bold text-slate-900">🌤️ Prévisions météo</h2>
+                        <span class="text-xs text-slate-500">5 jours</span>
+                    </div>
+                    <p class="text-sm text-slate-600 mb-3">Utilisées pour orienter les prédictions d'arrosage et de tonte.</p>
+                    <div id="weather-list" class="grid grid-cols-2 sm:grid-cols-5 gap-2 text-xs">
+                        <!-- Injecté par JS -->
                     </div>
                 </div>
 
@@ -128,20 +151,7 @@
                 </div>
             </div>
 
-            <!-- ONGLET 3 : MÉTÉO -->
-            <div id="tab-meteo" class="tab-content hidden space-y-6">
-                <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
-                    <h2 class="text-lg font-bold text-slate-900 mb-4">🌤️ Données Météo Réelles (API Open-Meteo)</h2>
-                    <div class="space-y-4">
-                        <p class="text-sm text-slate-600">Historique des 3 derniers jours glissants récupéré en direct pour alimenter les calculs :</p>
-                        <div id="weather-list" class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
-                            <!-- Injecté par JS -->
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- ONGLET 4 : RÉGLAGES & SAUVEGARDE -->
+            <!-- ONGLET 3 : RÉGLAGES & SAUVEGARDE -->
             <div id="tab-reglages" class="tab-content hidden space-y-6">
                 <!-- Section Gestion du Potager -->
                 <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
@@ -152,9 +162,50 @@
                         <!-- Injecté dynamiquement par JS -->
                     </div>
                     
-                    <button onclick="uiSauvegarderReglages()" class="bg-green-600 hover:bg-green-700 text-white font-medium py-2.5 px-6 rounded-xl transition-colors shadow-sm">
-                        💾 Enregistrer mes plantes
-                    </button>
+                    <div class="flex flex-col sm:flex-row gap-3 flex-wrap">
+                        <button onclick="uiSauvegarderReglages()" class="bg-green-600 hover:bg-green-700 text-white font-medium py-2.5 px-6 rounded-xl transition-colors shadow-sm">
+                            💾 Enregistrer mes plantes
+                        </button>
+                        <button onclick="uiReinitialiserHydrique()" class="bg-cyan-50 border border-cyan-200 hover:bg-cyan-100 text-cyan-800 font-medium py-2.5 px-6 rounded-xl transition-colors shadow-sm">
+                            💧 Réinitialiser l’état hydrique
+                        </button>
+                        <button onclick="uiReinitialiserJournal()" class="bg-amber-50 border border-amber-200 hover:bg-amber-100 text-amber-800 font-medium py-2.5 px-6 rounded-xl transition-colors shadow-sm">
+                            🗑️ Réinitialiser le journal
+                        </button>
+                        <button onclick="uiReinitialiserDonnees()" class="bg-red-50 border border-red-200 hover:bg-red-100 text-red-700 font-medium py-2.5 px-6 rounded-xl transition-colors shadow-sm">
+                            🧹 Réinitialiser les données
+                        </button>
+                    </div>
+                </div>
+
+                <!-- SECTION GESTION DETAILLEE DU JARDIN -->
+                <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
+                    <h2 class="text-lg font-bold text-slate-900 mb-2">🌿 Gestion détaillée du jardin</h2>
+                    <p class="text-slate-500 text-sm mb-6">Ajoutez, retirez et gérez la période de culture de chaque plante pour influencer les calculs d'eau.</p>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
+                        <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                            <label class="block text-sm font-medium text-slate-700 mb-2">Plante à ajouter</label>
+                            <select id="new-culture-select" class="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm mb-3">
+                                <option value="">Choisir une plante</option>
+                            </select>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <label class="block text-sm font-medium text-slate-700">
+                                    Date de plantation
+                                    <input id="new-culture-plantation" type="date" class="mt-1 w-full border border-slate-300 rounded-xl px-3 py-2 text-sm">
+                                </label>
+                                <label class="block text-sm font-medium text-slate-700">
+                                    Date d'arrachage (optionnelle)
+                                    <input id="new-culture-arrachage" type="date" class="mt-1 w-full border border-slate-300 rounded-xl px-3 py-2 text-sm">
+                                </label>
+                            </div>
+                            <button onclick="uiAjouterCulture()" class="mt-4 bg-blue-600 hover:bg-blue-700 text-white font-medium py-2.5 px-4 rounded-xl transition-colors shadow-sm text-sm">
+                                ➕ Ajouter la plante
+                            </button>
+                        </div>
+
+                        <div id="garden-management-list" class="space-y-3 max-h-[380px] overflow-y-auto pr-1"></div>
+                    </div>
                 </div>
 
                 <!-- SECTION SAUVEGARDE AMÉLIORÉE -->
@@ -180,6 +231,91 @@
     <script>
         function getLocalTodayString() {
             return new Date().toLocaleDateString('fr-CA');
+        }
+
+        function escapeHtml(value = '') {
+            return String(value)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+
+        function normalizePlantSelection(plantes) {
+            const selected = Array.isArray(plantes) ? plantes : [];
+            const validNames = Object.keys(CONFIG_JARDIN.famillesPlantes);
+            return [...new Set(selected.filter(plant => validNames.includes(plant)))];
+        }
+
+        function getDefaultCultureRecord(nom) {
+            return {
+                nom,
+                datePlantation: getLocalTodayString(),
+                dateArrachage: ''
+            };
+        }
+
+        function getSettingsDefaults() {
+            return {
+                plantesChoisies: ['Pelouse', 'Tomate', 'Courgette', 'Basilic'],
+                cultures: [],
+                seuilTonteCm: 7,
+                hauteurCibleTonteCm: 5
+            };
+        }
+
+        function getCultureRecords() {
+            const cultures = Array.isArray(DataManager.parametres?.cultures) ? DataManager.parametres.cultures : [];
+            return cultures
+                .filter(culture => culture && typeof culture.nom === 'string' && culture.nom.trim())
+                .map(culture => ({
+                    nom: culture.nom,
+                    datePlantation: culture.datePlantation || getLocalTodayString(),
+                    dateArrachage: culture.dateArrachage || ''
+                }));
+        }
+
+        function dateToTimestamp(dateString) {
+            if (!dateString) return null;
+            const [year, month, day] = dateString.split('-').map(Number);
+            return new Date(year, month - 1, day).getTime();
+        }
+
+        function estCultureActive(culture) {
+            return estCultureActiveForDate(culture, getLocalTodayString());
+        }
+
+        function estCultureActiveForDate(culture, dateString) {
+            const dateCourante = dateToTimestamp(dateString);
+            const plantation = dateToTimestamp(culture.datePlantation);
+            const arrachage = dateToTimestamp(culture.dateArrachage);
+
+            if (dateCourante === null) return true;
+            if (plantation !== null && plantation > dateCourante) return false;
+            if (arrachage !== null && arrachage < dateCourante) return false;
+            return true;
+        }
+
+        function getCulturesActives() {
+            return getCultureRecords().filter(culture => {
+                const estSelectionnee = DataManager.parametres.plantesChoisies.includes(culture.nom);
+                return estSelectionnee && estCultureActive(culture);
+            });
+        }
+
+        function syncCultureRecordsFromSelection() {
+            const culturesExistantes = getCultureRecords();
+            const map = new Map(culturesExistantes.map(culture => [culture.nom, culture]));
+
+            DataManager.parametres.plantesChoisies.forEach(nom => {
+                if (!map.has(nom)) {
+                    map.set(nom, getDefaultCultureRecord(nom));
+                }
+            });
+
+            DataManager.parametres.cultures = Array.from(map.values())
+                .filter(culture => DataManager.parametres.plantesChoisies.includes(culture.nom));
         }
 
         // ==========================================
@@ -242,7 +378,7 @@
         const WeatherUtils = {
             async fetchWeather() {
                 const { latitude, longitude } = CONFIG_JARDIN.location;
-                const url = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&daily=temperature_2m_max,precipitation_sum&timezone=Europe/Paris&past_days=3`;
+                const url = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&daily=temperature_2m_max,precipitation_sum&timezone=Europe/Paris&past_days=3&forecast_days=5`;
 
                 try {
                     const response = await fetch(url);
@@ -268,19 +404,84 @@
             KEYS: { JOURNAL: 'jardin_journal', PARAMETRES: 'jardin_parametres', ETAT: 'jardin_etat' },
             
             load(key, defaultStruct) {
-                const data = localStorage.getItem(key);
-                return data ? JSON.parse(data) : defaultStruct;
+                try {
+                    const data = localStorage.getItem(key);
+                    return data ? JSON.parse(data) : structuredClone(defaultStruct);
+                } catch (error) {
+                    console.warn(`Lecture de ${key} impossible, retour à la valeur par défaut.`, error);
+                    return structuredClone(defaultStruct);
+                }
             },
-            save(key, data) { localStorage.setItem(key, JSON.stringify(data)); },
+            save(key, data) {
+                try {
+                    localStorage.setItem(key, JSON.stringify(data));
+                } catch (error) {
+                    console.warn(`Écriture de ${key} impossible.`, error);
+                }
+            },
 
             initDatabase() {
                 this.journal = this.load(this.KEYS.JOURNAL, { arrosages: [], tontes: [] });
-                this.parametres = this.load(this.KEYS.PARAMETRES, { plantesChoisies: ["Pelouse", "Tomate", "Courgette", "Basilic"] });
+                this.parametres = this.load(this.KEYS.PARAMETRES, getSettingsDefaults());
+                this.parametres.plantesChoisies = normalizePlantSelection(this.parametres.plantesChoisies);
+                this.parametres.cultures = Array.isArray(this.parametres.cultures) ? this.parametres.cultures : [];
+                this.parametres.seuilTonteCm = Number(this.parametres.seuilTonteCm || 7);
+                this.parametres.hauteurCibleTonteCm = Number(this.parametres.hauteurCibleTonteCm || 5);
+                syncCultureRecordsFromSelection();
                 this.etat = this.load(this.KEYS.ETAT, { deficitsAccumules: {}, dernierCalcul: null });
             },
             sauvegarderJournal() { this.save(this.KEYS.JOURNAL, this.journal); },
             sauvegarderEtat() { this.save(this.KEYS.ETAT, this.etat); }
         };
+
+        function calculerSeriesDeficits(weatherHistory, journal, plantesChoisies) {
+            const aujourdhui = getLocalTodayString();
+            const seriesParPlante = {};
+            const cultures = getCultureRecords();
+
+            plantesChoisies.forEach(plante => {
+                seriesParPlante[plante] = [];
+            });
+
+            weatherHistory.forEach(meteo => {
+                const dateStr = meteo.date;
+                if (dateStr > aujourdhui) return;
+
+                const pluie = meteo.rainMm;
+                const temp = meteo.maxTemp;
+
+                plantesChoisies.forEach(plante => {
+                    const culture = cultures.find(c => c.nom === plante);
+                    const estActive = culture ? estCultureActiveForDate(culture, dateStr) : true;
+
+                    const deficitPrecedent = seriesParPlante[plante].length > 0
+                        ? seriesParPlante[plante][seriesParPlante[plante].length - 1]
+                        : 0;
+
+                    if (!estActive) {
+                        seriesParPlante[plante].push(deficitPrecedent);
+                        return;
+                    }
+
+                    const config = CONFIG_JARDIN.famillesPlantes[plante] || { besoinEauStandardMm: 3 };
+                    let besoin = config.besoinEauStandardMm;
+
+                    if (temp > 30) besoin *= 1.3;
+                    else if (temp < 15) besoin *= 0.7;
+
+                    const nbrArrosages = journal.arrosages.filter(evt => evt.date === dateStr && evt.plants.includes(plante)).length;
+                    const apportManuel = nbrArrosages * 10;
+
+                    let deficit = deficitPrecedent + besoin - pluie - apportManuel;
+                    if (deficit < -5) deficit = -5;
+
+                    const deficitArrondi = Math.round(deficit * 10) / 10;
+                    seriesParPlante[plante].push(deficitArrondi);
+                });
+            });
+
+            return seriesParPlante;
+        }
 
         // ==========================================
         // 4. MOTEUR DE CALCUL MÉTIER
@@ -288,33 +489,11 @@
         const GardenLogic = {
             mettreAJourDeficits(db, weatherHistory) {
                 const aujourdhui = getLocalTodayString();
-                
-                db.parametres.plantesChoisies.forEach(p => {
-                    db.etat.deficitsAccumules[p] = 0;
-                });
+                const seriesParPlante = calculerSeriesDeficits(weatherHistory, db.journal, db.parametres.plantesChoisies);
 
-                weatherHistory.forEach(meteo => {
-                    const dateStr = meteo.date;
-                    if (dateStr > aujourdhui) return;
-
-                    const pluie = meteo.rainMm;
-                    const temp = meteo.maxTemp;
-
-                    db.parametres.plantesChoisies.forEach(plante => {
-                        const config = CONFIG_JARDIN.famillesPlantes[plante] || { besoinEauStandardMm: 3 };
-                        let besoin = config.besoinEauStandardMm;
-
-                        if (temp > 30) besoin *= 1.3;
-                        else if (temp < 15)  besoin *= 0.7;
-
-                        const nbrArrosages = db.journal.arrosages.filter(evt => evt.date === dateStr && evt.plants.includes(plante)).length;
-                        const apportManuel = nbrArrosages * 10;
-
-                        let deficit = (db.etat.deficitsAccumules[plante] || 0) + besoin - pluie - apportManuel;
-                        
-                        if (deficit < -5) deficit = -5; 
-                        db.etat.deficitsAccumules[plante] = Math.round(deficit * 10) / 10;
-                    });
+                db.parametres.plantesChoisies.forEach(plante => {
+                    const dernierDeficit = seriesParPlante[plante]?.at(-1) ?? 0;
+                    db.etat.deficitsAccumules[plante] = dernierDeficit;
                 });
 
                 db.etat.dernierCalcul = aujourdhui;
@@ -326,53 +505,79 @@
         // 5. RENDU DE L'INTERFACE & COMPOSANTS
         // ==========================================
         function switchTab(tabId) {
-            document.querySelectorAll('.tab-content').forEach(c => c.classList.replace('block', 'hidden'));
-            document.getElementById(tabId).classList.replace('hidden', 'block');
-            document.querySelectorAll('.tab-button').forEach(b => b.classList.remove('border-green-600', 'text-green-700'));
-            
-            document.getElementById('btn-' + tabId).classList.add('border-green-600', 'text-green-700');
+            document.querySelectorAll('.tab-content').forEach(c => {
+                c.classList.add('hidden');
+                c.classList.remove('block');
+            });
+
+            const targetTab = document.getElementById(tabId);
+            if (targetTab) {
+                targetTab.classList.remove('hidden');
+                targetTab.classList.add('block');
+            }
+
+            document.querySelectorAll('.tab-button').forEach(button => {
+                button.classList.remove('border-green-600', 'text-green-700');
+                button.classList.add('border-transparent', 'text-slate-500');
+                button.setAttribute('aria-selected', 'false');
+            });
+
+            const activeButton = document.getElementById('btn-' + tabId);
+            if (activeButton) {
+                activeButton.classList.add('border-green-600', 'text-green-700');
+                activeButton.classList.remove('border-transparent', 'text-slate-500');
+                activeButton.setAttribute('aria-selected', 'true');
+            }
         }
 
         function renderCheckboxes() {
             const container = document.getElementById('plants-checkboxes');
-            container.innerHTML = DataManager.parametres.plantesChoisies.map(p => `
-                <label class="flex items-center gap-3 p-2 hover:bg-slate-50 rounded-xl cursor-pointer transition-colors border border-transparent hover:border-slate-100">
-                    <input type="checkbox" name="plants-watering" value="${p}" checked class="w-4 h-4 text-blue-600 accent-blue-600 rounded">
-                    <span class="text-sm font-medium text-slate-700">${CONFIG_JARDIN.famillesPlantes[p]?.icone || "🌱"} ${p}</span>
-                </label>
-            `).join('');
+            container.innerHTML = DataManager.parametres.plantesChoisies.map(p => {
+                const safePlant = escapeHtml(p);
+                const safeIcon = escapeHtml(CONFIG_JARDIN.famillesPlantes[p]?.icone || '🌱');
+                return `
+                    <label class="flex items-center gap-3 p-2 hover:bg-slate-50 rounded-xl cursor-pointer transition-colors border border-transparent hover:border-slate-100">
+                        <input type="checkbox" name="plants-watering" value="${safePlant}" checked class="w-4 h-4 text-blue-600 accent-blue-600 rounded">
+                        <span class="text-sm font-medium text-slate-700">${safeIcon} ${safePlant}</span>
+                    </label>
+                `;
+            }).join('');
         }
 
         function renderMetrics() {
             const container = document.getElementById('metrics-container');
-            container.innerHTML = DataManager.parametres.plantesChoisies.map(p => {
+            const plantesActives = getCulturesActives().map(culture => culture.nom);
+
+            if (plantesActives.length === 0) {
+                container.innerHTML = '<div class="col-span-full rounded-2xl border border-dashed border-slate-300 p-4 text-sm text-slate-500">Aucune plante active pour le moment.</div>';
+                return;
+            }
+
+            container.innerHTML = plantesActives.map(p => {
                 const def = DataManager.etat.deficitsAccumules[p] || 0;
                 const config = CONFIG_JARDIN.famillesPlantes[p] || {};
-                const icone = config.icone || "🌱";
-                
-                let colorClass = "text-emerald-600 bg-emerald-50 border-emerald-100";
-                let statusText = "Sol Humide 👍";
-                
-                if (def > 4) {
-                    colorClass = "text-red-600 bg-red-50 border-red-100";
-                    statusText = "🚨 Arrosage urgent !";
-                } else if (def > 0) {
-                    colorClass = "text-amber-600 bg-amber-50 border-amber-100";
-                    statusText = "⚠️ À surveiller";
-                }
+                const icone = config.icone || '🌱';
+                const safePlant = escapeHtml(p);
+                const safeIcon = escapeHtml(icone);
 
-                const favorisTexte = config.favoris && config.favoris.length > 0 
-                    ? `<p class="text-[10px] text-slate-400 mt-2 italic">Amis : ${config.favoris.join(', ')}</p>` 
+                const statusConfig = def > 4
+                    ? { textClass: 'text-red-600', bgClass: 'bg-red-50', borderClass: 'border-red-100', statusText: '🚨 Arrosage urgent !' }
+                    : def > 0
+                        ? { textClass: 'text-amber-600', bgClass: 'bg-amber-50', borderClass: 'border-amber-100', statusText: '⚠️ À surveiller' }
+                        : { textClass: 'text-emerald-600', bgClass: 'bg-emerald-50', borderClass: 'border-emerald-100', statusText: 'Sol Humide 👍' };
+
+                const favorisTexte = config.favoris && config.favoris.length > 0
+                    ? `<p class="text-[10px] text-slate-400 mt-2 italic">Amis : ${escapeHtml(config.favoris.join(', '))}</p>`
                     : '';
 
                 return `
-                    <div class="p-4 rounded-xl border text-center ${colorClass.split(' ')[2]} flex flex-col justify-between">
+                    <div class="p-4 rounded-xl border text-center ${statusConfig.borderClass} ${statusConfig.bgClass} flex flex-col justify-between">
                         <div>
-                            <span class="text-xs font-bold text-slate-500 block uppercase tracking-wider">${icone} ${p}</span>
-                            <span class="text-2xl font-black block my-1 ${colorClass.split(' ')[0]}">${def} mm</span>
+                            <span class="text-xs font-bold text-slate-500 block uppercase tracking-wider">${safeIcon} ${safePlant}</span>
+                            <span class="text-2xl font-black block my-1 ${statusConfig.textClass}">${def} mm</span>
                         </div>
                         <div>
-                            <span class="text-xs font-semibold px-2 py-0.5 rounded-full ${colorClass.split(' ')[1]} ${colorClass.split(' ')[0]}">${statusText}</span>
+                            <span class="text-xs font-semibold px-2 py-0.5 rounded-full ${statusConfig.bgClass} ${statusConfig.textClass}">${statusConfig.statusText}</span>
                             ${favorisTexte}
                         </div>
                     </div>
@@ -404,10 +609,10 @@
         function renderWeatherView(donneesMeteo) {
             const container = document.getElementById('weather-list');
             container.innerHTML = donneesMeteo.map(m => `
-                <div class="bg-slate-100 p-3 rounded-xl border border-slate-200">
-                    <p class="font-bold text-slate-700">${m.date}</p>
-                    <p class="text-amber-700">🌡️ Max : ${m.maxTemp}°C</p>
-                    <p class="text-blue-700">🌧️ Pluie : ${m.rainMm} mm</p>
+                <div class="bg-slate-50 p-2.5 rounded-xl border border-slate-200 flex flex-col gap-1">
+                    <p class="font-bold text-slate-700 text-[11px]">${m.date}</p>
+                    <p class="text-amber-700">🌡️ ${m.maxTemp}°C</p>
+                    <p class="text-blue-700">🌧️ ${m.rainMm} mm</p>
                 </div>
             `).join('');
         }
@@ -419,13 +624,241 @@
             container.innerHTML = Object.keys(CONFIG_JARDIN.famillesPlantes).map(p => {
                 const checked = choisies.includes(p) ? 'checked' : '';
                 const icone = CONFIG_JARDIN.famillesPlantes[p].icone;
+                const safePlant = escapeHtml(p);
+                const safeIcon = escapeHtml(icone);
                 return `
                     <label class="flex items-center justify-between p-3 bg-slate-50 hover:bg-slate-100 rounded-xl cursor-pointer border border-slate-200 transition-colors">
-                        <span class="text-sm font-medium text-slate-700">${icone} ${p}</span>
-                        <input type="checkbox" name="settings-plants" value="${p}" ${checked} class="w-4 h-4 text-green-600 accent-green-600 rounded">
+                        <span class="text-sm font-medium text-slate-700">${safeIcon} ${safePlant}</span>
+                        <input type="checkbox" name="settings-plants" value="${safePlant}" ${checked} class="w-4 h-4 text-green-600 accent-green-600 rounded">
                     </label>
                 `;
             }).join('');
+        }
+
+        function fillCultureSelectOptions() {
+            const select = document.getElementById('new-culture-select');
+            if (!select) return;
+
+            select.innerHTML = '<option value="">Choisir une plante</option>' + Object.keys(CONFIG_JARDIN.famillesPlantes).map(p => {
+                const icone = escapeHtml(CONFIG_JARDIN.famillesPlantes[p].icone || '🌱');
+                const nom = escapeHtml(p);
+                return `<option value="${nom}">${icone} ${nom}</option>`;
+            }).join('');
+        }
+
+        function renderGardenManagement() {
+            const container = document.getElementById('garden-management-list');
+            const cultures = getCultureRecords();
+
+            if (cultures.length === 0) {
+                container.innerHTML = '<div class="rounded-2xl border border-dashed border-slate-300 p-4 text-sm text-slate-500">Aucune plante gérée pour le moment.</div>';
+                return;
+            }
+
+            container.innerHTML = cultures.map(culture => {
+                const safeName = escapeHtml(culture.nom);
+                const active = estCultureActive(culture) ? '✅ Culture active aujourd’hui' : '⏸️ Hors période de culture';
+                return `
+                    <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                        <div class="flex items-center justify-between gap-3 mb-3">
+                            <div class="font-semibold text-slate-800">${safeName}</div>
+                            <button data-action="remove-culture" data-name="${safeName}" class="text-xs bg-red-50 border border-red-200 text-red-700 rounded-full px-3 py-1 hover:bg-red-100">
+                                Supprimer
+                            </button>
+                        </div>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <label class="block text-xs font-medium text-slate-700">
+                                Plantation
+                                <input type="date" data-culture="${safeName}" data-field="datePlantation" value="${culture.datePlantation || getLocalTodayString()}" class="culture-date-input mt-1 w-full border border-slate-300 rounded-xl px-3 py-2 text-sm">
+                            </label>
+                            <label class="block text-xs font-medium text-slate-700">
+                                Arrachage
+                                <input type="date" data-culture="${safeName}" data-field="dateArrachage" value="${culture.dateArrachage || ''}" class="culture-date-input mt-1 w-full border border-slate-300 rounded-xl px-3 py-2 text-sm">
+                            </label>
+                        </div>
+                        <p class="text-xs mt-3 ${active.includes('✅') ? 'text-emerald-700' : 'text-amber-700'}">${active}</p>
+                    </div>
+                `;
+            }).join('');
+
+            container.querySelectorAll('[data-action="remove-culture"]').forEach(button => {
+                button.addEventListener('click', () => uiSupprimerCulture(button.dataset.name));
+            });
+
+            container.querySelectorAll('.culture-date-input').forEach(input => {
+                input.addEventListener('change', () => {
+                    uiMettreAJourCultureDate(input.dataset.culture, input.dataset.field, input.value);
+                });
+            });
+        }
+
+        function predireProchainArrosage() {
+            const plantesActives = getCulturesActives().map(culture => culture.nom);
+            if (plantesActives.length === 0) return null;
+
+            const aujourdHui = getLocalTodayString();
+            const previsions = meteoActuelle.filter(m => m.date >= aujourdHui);
+            if (previsions.length === 0) return null;
+
+            const predictions = [];
+
+            plantesActives.forEach(plante => {
+                let deficit = DataManager.etat.deficitsAccumules[plante] || 0;
+                let datePrevue = null;
+                let deficitPrevu = deficit;
+
+                if (deficit > 4) {
+                    datePrevue = aujourdHui;
+                    deficitPrevu = deficit;
+                } else {
+                    for (const meteo of previsions) {
+                        const config = CONFIG_JARDIN.famillesPlantes[plante] || { besoinEauStandardMm: 3 };
+                        let besoin = config.besoinEauStandardMm;
+
+                        if (meteo.maxTemp > 30) besoin *= 1.3;
+                        else if (meteo.maxTemp < 15) besoin *= 0.7;
+
+                        let prochainDeficit = deficit + besoin - meteo.rainMm;
+                        if (prochainDeficit < -5) prochainDeficit = -5;
+
+                        if (prochainDeficit > 4) {
+                            datePrevue = meteo.date;
+                            deficitPrevu = prochainDeficit;
+                            break;
+                        }
+
+                        deficit = prochainDeficit;
+                    }
+                }
+
+                if (datePrevue) {
+                    const volumeLParM2 = Math.max(0, Math.round(deficitPrevu * 10) / 10);
+                    predictions.push({
+                        plante,
+                        date: datePrevue,
+                        deficit: Math.round(deficitPrevu * 10) / 10,
+                        volumeLParM2
+                    });
+                }
+            });
+
+            if (predictions.length === 0) return null;
+
+            return {
+                date: predictions.sort((a, b) => a.date.localeCompare(b.date))[0].date,
+                predictions
+            };
+        }
+
+        function predireProchaineTonte() {
+            const derniereTonte = DataManager.journal.tontes.length > 0
+                ? [...DataManager.journal.tontes].sort((a, b) => b.date.localeCompare(a.date))[0]
+                : null;
+
+            if (!derniereTonte) return null;
+
+            const seuilTonte = Number(DataManager.parametres.seuilTonteCm || document.getElementById('mow-threshold')?.value || 7);
+            const hauteurCible = Number(DataManager.parametres.hauteurCibleTonteCm || document.getElementById('mow-height')?.value || 5);
+            const deficitPelouse = DataManager.etat.deficitsAccumules.Pelouse || 0;
+            const aujourdhui = getLocalTodayString();
+            const previsions = meteoActuelle.filter(m => m.date >= aujourdhui);
+
+            if (previsions.length === 0) return null;
+
+            let hauteurCourante = Number(derniereTonte.hauteur) || hauteurCible;
+            let datePrevue = null;
+
+            for (const meteo of previsions) {
+                const facteurTemp = meteo.maxTemp < 10
+                    ? 0.05
+                    : meteo.maxTemp < 15
+                        ? 0.5
+                        : meteo.maxTemp < 25
+                            ? 1
+                            : meteo.maxTemp < 30
+                                ? 0.6
+                                : 0.2;
+
+                const facteurEau = deficitPelouse <= 0
+                    ? 1
+                    : deficitPelouse <= 2
+                        ? 0.8
+                        : deficitPelouse <= 4
+                            ? 0.4
+                            : 0;
+
+                const gain = 0.4 * facteurTemp * facteurEau;
+                hauteurCourante += gain;
+
+                if (hauteurCourante >= seuilTonte) {
+                    datePrevue = meteo.date;
+                    break;
+                }
+            }
+
+            if (!datePrevue) return null;
+
+            return {
+                date: datePrevue,
+                hauteurActuelle: Math.round(Math.max(hauteurCible, Number(derniereTonte.hauteur) || hauteurCible) * 10) / 10,
+                seuilTonte: Math.round(seuilTonte * 10) / 10,
+                hauteurCible: Math.round(hauteurCible * 10) / 10,
+                hauteurEstimee: Math.round(hauteurCourante * 10) / 10
+            };
+        }
+
+        function renderDashboardSummary() {
+            const container = document.getElementById('dashboard-summary');
+            const plantesActives = getCulturesActives();
+            const prochainePrevision = predireProchainArrosage();
+            const prochaineTonte = predireProchaineTonte();
+
+            const activeNames = plantesActives.map(c => c.nom);
+            const focusPlantes = activeNames.length > 0 ? activeNames.join(', ') : 'Aucune plante active';
+
+            const cards = [
+                {
+                    icon: '🌿',
+                    title: 'Jardin actif',
+                    badge: 'Suivi',
+                    value: `${plantesActives.length}`,
+                    detail: plantesActives.length > 0
+                        ? `Cultures actuellement suivies : ${focusPlantes}`
+                        : 'Aucune culture active pour le moment',
+                    tone: 'bg-emerald-50 text-emerald-900 border-emerald-200'
+                },
+                {
+                    icon: '💧',
+                    title: 'Arrosage à prévoir',
+                    badge: prochainePrevision ? 'Action' : 'À venir',
+                    value: prochainePrevision ? prochainePrevision.date : '—',
+                    detail: prochainePrevision
+                        ? `${prochainePrevision.predictions.length} plante(s) concernée(s) • ${prochainePrevision.predictions.map(p => `${p.plante} ${p.volumeLParM2} L/m²`).join(' • ')}`
+                        : 'Aucune intervention d’eau prévue dans la fenêtre météo',
+                    tone: 'bg-sky-50 text-sky-900 border-sky-200'
+                },
+                {
+                    icon: '✂️',
+                    title: 'Tonte à prévoir',
+                    badge: prochaineTonte ? 'Cible' : 'À venir',
+                    value: prochaineTonte ? prochaineTonte.date : '—',
+                    detail: prochaineTonte
+                        ? `Seuil ${prochaineTonte.seuilTonte} cm • Cible ${prochaineTonte.hauteurCible} cm • Hauteur estimée ${prochaineTonte.hauteurEstimee} cm`
+                        : 'Aucune intervention de tonte prévue pour le moment',
+                    tone: 'bg-lime-50 text-lime-900 border-lime-200'
+                }
+            ];
+
+            container.innerHTML = cards.map(card => `
+                <div class="rounded-3xl border p-4 shadow-sm ${card.tone}">
+                    <div class="flex items-center justify-between gap-3">
+                        <p class="text-[11px] uppercase tracking-wide font-semibold opacity-80">${card.icon} ${card.title}</p>
+                        <span class="rounded-full bg-white/70 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide">${card.badge}</span>
+                    </div>
+                    <div class="text-2xl font-extrabold mt-3 leading-none">${card.value}</div>
+                    <p class="text-sm mt-2 leading-5 opacity-90">${escapeHtml(card.detail)}</p>
+                </div>
+            `).join('');
         }
 
         // ==========================================
@@ -439,6 +872,37 @@
             const derniereTonte = DataManager.journal.tontes.length > 0 ? DataManager.journal.tontes[DataManager.journal.tontes.length - 1] : null;
 
             let conseilsHTML = [];
+            const prochainePrevision = predireProchainArrosage();
+            const prochaineTonte = predireProchaineTonte();
+
+            if (prochainePrevision) {
+                const details = prochainePrevision.predictions
+                    .sort((a, b) => a.date.localeCompare(b.date))
+                    .map(item => `${item.plante} → ${item.date} (${item.volumeLParM2} L/m² estimés)`)
+                    .join(' • ');
+
+                conseilsHTML.push(`
+                    <div class="flex items-start gap-3 p-3 bg-sky-50 text-sky-900 rounded-xl border border-sky-200 text-sm">
+                        <span>💧</span>
+                        <div>
+                            <strong>Prédiction du jardin :</strong> le prochain arrosage est prévu le <span class="font-bold">${prochainePrevision.date}</span>.
+                            <div class="mt-1">${details}</div>
+                        </div>
+                    </div>
+                `);
+            }
+
+            if (prochaineTonte) {
+                conseilsHTML.push(`
+                    <div class="flex items-start gap-3 p-3 bg-lime-50 text-lime-900 rounded-xl border border-lime-200 text-sm">
+                        <span>✂️</span>
+                        <div>
+                            <strong>Prédiction de tonte :</strong> à partir de <span class="font-bold">${prochaineTonte.seuilTonte} cm</span>, il serait conseillé de tondre le <span class="font-bold">${prochaineTonte.date}</span>.
+                            <div class="mt-1">Hauteur cible après tonte : ${prochaineTonte.hauteurCible} cm. Hauteur actuelle estimée : ${prochaineTonte.hauteurActuelle} cm.</div>
+                        </div>
+                    </div>
+                `);
+            }
 
             if (meteoAujourdhui.maxTemp > 30) {
                 conseilsHTML.push(`
@@ -491,6 +955,7 @@
             }
 
             container.innerHTML = conseilsHTML.join('');
+            renderDashboardSummary();
             box.classList.replace('hidden', 'block');
         }
 
@@ -502,24 +967,10 @@
             if (monGraphiqueInstance) monGraphiqueInstance.destroy();
 
             const labelsDates = meteoActuelle.map(m => m.date);
-            const datasetsPlantes = DataManager.parametres.plantesChoisies.map(plante => {
-                let pointsDeficit = [];
-                let simulationDeficit = 0;
-
-                meteoActuelle.forEach(meteo => {
-                    const config = CONFIG_JARDIN.famillesPlantes[plante] || { besoinEauStandardMm: 3 };
-                    let besoin = config.besoinEauStandardMm;
-
-                    if (meteo.maxTemp > 30) besoin *= 1.3;
-                    else if (meteo.maxTemp < 15) besoin *= 0.7;
-
-                    const nbrArrosages = DataManager.journal.arrosages.filter(evt => evt.date === meteo.date && evt.plants.includes(plante)).length;
-                    const apportManuel = nbrArrosages * 10;
-
-                    simulationDeficit = simulationDeficit + besoin - meteo.rainMm - apportManuel;
-                    if (simulationDeficit < -5) simulationDeficit = -5;
-                    pointsDeficit.push(Math.round(simulationDeficit * 10) / 10);
-                });
+            const plantesActives = getCulturesActives().map(culture => culture.nom);
+            const seriesParPlante = calculerSeriesDeficits(meteoActuelle, DataManager.journal, plantesActives);
+            const datasetsPlantes = plantesActives.map(plante => {
+                const pointsDeficit = seriesParPlante[plante] || [];
 
                 let col = '#16a34a';
                 const name = plante.toLowerCase();
@@ -541,6 +992,15 @@
                     pointRadius: 4
                 };
             });
+
+            if (datasetsPlantes.length === 0) {
+                ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+                ctx.fillStyle = '#64748b';
+                ctx.font = '16px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText('Aucune plante active pour afficher l’évolution.', ctx.canvas.width / 2, ctx.canvas.height / 2);
+                return;
+            }
 
             monGraphiqueInstance = new Chart(ctx, {
                 type: 'line',
@@ -604,6 +1064,56 @@
             alert("📤 Fichier généré ! Choisissez votre espace Cloud (Google Drive / iCloud / Fichiers) comme destination d'enregistrement.");
         }
 
+        function uiReinitialiserHydrique() {
+            const confirmation = window.confirm('💧 Réinitialiser seulement l’état hydrique du jardin ?');
+            if (!confirmation) return;
+
+            DataManager.etat = { deficitsAccumules: {}, dernierCalcul: null };
+            DataManager.sauvegarderEtat();
+            GardenLogic.mettreAJourDeficits(DataManager, meteoActuelle);
+
+            renderMetrics();
+            renderRecommendations();
+            renderChart();
+            alert('💧 État hydrique réinitialisé avec succès.');
+        }
+
+        function uiReinitialiserJournal() {
+            const confirmation = window.confirm('🗑️ Réinitialiser uniquement le journal des interventions ?');
+            if (!confirmation) return;
+
+            DataManager.journal = { arrosages: [], tontes: [] };
+            DataManager.sauvegarderJournal();
+            DataManager.initDatabase();
+            GardenLogic.mettreAJourDeficits(DataManager, meteoActuelle);
+
+            renderHistory();
+            renderRecommendations();
+            renderChart();
+            renderMetrics();
+            alert('🗑️ Journal réinitialisé avec succès.');
+        }
+
+        function uiReinitialiserDonnees() {
+            const confirmation = window.confirm('🧹 Réinitialiser toutes les données locales du jardin ? Cette action effacera le journal, les réglages et les déficits enregistrés.');
+            if (!confirmation) return;
+
+            const defaults = {
+                journal: { arrosages: [], tontes: [] },
+                parametres: { plantesChoisies: ['Pelouse', 'Tomate', 'Courgette', 'Basilic'] },
+                etat: { deficitsAccumules: {}, dernierCalcul: null }
+            };
+
+            DataManager.save(DataManager.KEYS.JOURNAL, defaults.journal);
+            DataManager.save(DataManager.KEYS.PARAMETRES, defaults.parametres);
+            DataManager.save(DataManager.KEYS.ETAT, defaults.etat);
+
+            DataManager.initDatabase();
+            demarrerApplication();
+            switchTab('tab-suivi');
+            alert('🧹 Données réinitialisées avec succès.');
+        }
+
         function uiImporterDonnees() {
             const selecteurFichier = document.createElement('input');
             selecteurFichier.type = 'file';
@@ -662,6 +1172,11 @@
 
         function uiEnregistrerTonte() {
             const h = document.getElementById('mow-height').value;
+            const seuil = document.getElementById('mow-threshold').value;
+            DataManager.parametres.hauteurCibleTonteCm = parseFloat(h);
+            DataManager.parametres.seuilTonteCm = parseFloat(seuil);
+            DataManager.save(DataManager.KEYS.PARAMETRES, DataManager.parametres);
+
             DataManager.journal.tontes.push({
                 date: getLocalTodayString(),
                 hauteur: parseFloat(h)
@@ -673,11 +1188,87 @@
             alert(`✂️ Tonte à ${h} cm enregistrée !`);
         }
 
+        function uiSaferDateValue(value) {
+            return value || '';
+        }
+
+        function uiAjouterCulture() {
+            const select = document.getElementById('new-culture-select');
+            const plantationInput = document.getElementById('new-culture-plantation');
+            const arrachageInput = document.getElementById('new-culture-arrachage');
+
+            if (!select || !select.value) return alert('Choisissez une plante à ajouter.');
+
+            const nom = select.value;
+            const prochainePlantation = plantationInput.value || getLocalTodayString();
+            const prochainArrachage = arrachageInput.value || '';
+
+            const cultures = getCultureRecords();
+            const existante = cultures.find(culture => culture.nom === nom);
+
+            if (existante) {
+                existante.datePlantation = prochainePlantation;
+                existante.dateArrachage = prochainArrachage;
+            } else {
+                cultures.push({ nom, datePlantation: prochainePlantation, dateArrachage: prochainArrachage });
+            }
+
+            if (!DataManager.parametres.plantesChoisies.includes(nom)) {
+                DataManager.parametres.plantesChoisies.push(nom);
+            }
+
+            DataManager.parametres.cultures = cultures;
+            DataManager.parametres.plantesChoisies = normalizePlantSelection(DataManager.parametres.plantesChoisies);
+            DataManager.save(DataManager.KEYS.PARAMETRES, DataManager.parametres);
+
+            GardenLogic.mettreAJourDeficits(DataManager, meteoActuelle);
+            renderSettingsView();
+            renderGardenManagement();
+            renderCheckboxes();
+            renderMetrics();
+            renderRecommendations();
+            renderChart();
+            alert(`➕ Plante ${nom} ajoutée au jardin.`);
+        }
+
+        function uiSupprimerCulture(nom) {
+            const cultures = getCultureRecords().filter(culture => culture.nom !== nom);
+            DataManager.parametres.cultures = cultures;
+            DataManager.parametres.plantesChoisies = normalizePlantSelection(DataManager.parametres.plantesChoisies.filter(plante => plante !== nom));
+            DataManager.save(DataManager.KEYS.PARAMETRES, DataManager.parametres);
+
+            GardenLogic.mettreAJourDeficits(DataManager, meteoActuelle);
+            renderSettingsView();
+            renderGardenManagement();
+            renderCheckboxes();
+            renderMetrics();
+            renderRecommendations();
+            renderChart();
+            alert(`🗑️ ${nom} retirée du jardin.`);
+        }
+
+        function uiMettreAJourCultureDate(nom, field, value) {
+            const cultures = getCultureRecords();
+            const culture = cultures.find(entry => entry.nom === nom);
+            if (!culture) return;
+
+            culture[field] = uiSaferDateValue(value);
+            DataManager.parametres.cultures = cultures;
+            DataManager.save(DataManager.KEYS.PARAMETRES, DataManager.parametres);
+
+            GardenLogic.mettreAJourDeficits(DataManager, meteoActuelle);
+            renderGardenManagement();
+            renderMetrics();
+            renderRecommendations();
+            renderChart();
+        }
+
         function uiSauvegarderReglages() {
             const checked = Array.from(document.querySelectorAll('input[name="settings-plants"]:checked')).map(i => i.value);
             if (checked.length === 0) return alert("Veuillez sélectionner au moins une culture !");
-            
-            DataManager.parametres.plantesChoisies = checked;
+
+            DataManager.parametres.plantesChoisies = normalizePlantSelection(checked);
+            syncCultureRecordsFromSelection();
             DataManager.save(DataManager.KEYS.PARAMETRES, DataManager.parametres);
             
             GardenLogic.mettreAJourDeficits(DataManager, meteoActuelle);
@@ -687,6 +1278,7 @@
             renderHistory();
             renderRecommendations();
             renderChart();
+            renderGardenManagement();
             
             alert("⚙️ Réglages enregistrés ! La liste de vos plantes a été mise à jour.");
             switchTab('tab-suivi');
@@ -713,6 +1305,8 @@
             renderHistory();
             renderWeatherView(meteoActuelle);
             renderSettingsView();
+            fillCultureSelectOptions();
+            renderGardenManagement();
             renderRecommendations();
             renderChart();
         }

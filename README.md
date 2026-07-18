@@ -1,23 +1,33 @@
 # 🌿 Mon Jardin Connecté
 
-Application web statique et ultra-rapide pour le suivi hydrique du potager et de la pelouse à Beauzelle. 
+Application web statique et ultra-rapide pour le suivi hydrique du potager et de la pelouse.
 
-Anciennement propulsé par Streamlit, ce projet fonctionne désormais à 100 % dans le navigateur pour garantir une indépendance et une confidentialité totale des données.
+Anciennement propulsée par Streamlit, cette version fonctionne entièrement dans le navigateur pour préserver la confidentialité des données et éviter tout besoin de backend.
 
-## ✨ Caractéristiques
-- **Suivi en direct :** Intégration de l'API Open-Meteo pour récupérer pluies et températures sans clé d'API.
-- **Calcul intelligent :** Moteur d'estimation du déficit en eau du sol mis à jour automatiquement.
-- **Graphiques natifs :** Évolution dynamique via Chart.js.
-- **Zéro Base de données serveur :** Tout est stocké de manière sécurisée dans votre navigateur (`LocalStorage`).
+## ✨ Ce que fait l’application
+- **Suivi de jardin en direct :** utilisation d’Open-Meteo pour récupérer les prévisions de pluie et les températures.
+- **Tableau de bord orienté action :** résumé des cultures actives, du prochain arrosage et de la prochaine tonte.
+- **Prédictions intelligentes :** estimation du prochain arrosage à partir des températures et des pluies prévues.
+- **Prédiction de tonte :** suivi de la hauteur du gazon et estimation de l’intervention à venir.
+- **Gestion détaillée des cultures :** dates de plantation et d’arrachage pour tenir compte des périodes actives/inactives.
+- **Graphiques dynamiques :** suivi visuel du déficit hydrique via Chart.js.
+- **Sauvegarde locale :** stockage des données dans le navigateur avec LocalStorage.
+- **Export / import :** gestion d’une sauvegarde JSON via l’API File System Access lorsqu’elle est disponible.
 
-## 🚀 Installation & Déploiement
-1. Hébergé gratuitement via **GitHub Pages**.
-2. Utilisable instantanément sur Mobile ou Desktop.
+## 🚀 Utilisation
+1. Ouvrir le fichier [index.html](index.html) dans un navigateur moderne.
+2. Utiliser l’onglet “Direct du jour” pour contrôler les décisions du jour.
+3. Gérer les cultures et les dates depuis l’onglet Réglages.
+4. Exporter ou importer les données si besoin pour synchroniser entre appareils.
 
-## 🔄 Sauvegarde et Synchronisation Cloud
+## 🔄 Sauvegarde et synchronisation cloud
 
-L'application est 100% locale, mais elle intègre désormais une gestion intelligente des sauvegardes grâce à l'**API File System Access** :
+L’application est 100 % locale, mais elle prend en charge des sauvegardes manuelles via l’API File System Access :
 
-* **Sur Ordinateur (Chrome, Edge, Opera) :** Le bouton "Exporter" ouvre l'explorateur natif de votre système. Vous pouvez sélectionner directement un dossier synchronisé (*Google Drive, OneDrive, Dropbox, iCloud*) et écraser votre ancien fichier `jardin_backup.json` pour éviter d'accumuler des doublons.
-* **Sur Mobile / Safari / Firefox :** L'application génère un fichier `.json` standard et sollicite le système d'exploitation (iOS/Android) pour vous permettre de le ranger dans votre application *Fichiers* ou *Drive*.
-* **Importation :** Le bouton "Importer" permet de charger instantanément ce même fichier pour synchroniser vos données sur un autre appareil.
+- **Sur ordinateur (Chrome, Edge, Opera) :** le bouton “Exporter” ouvre l’explorateur système pour choisir un dossier synchronisé comme OneDrive, Google Drive, Dropbox ou iCloud.
+- **Sur mobile / Safari / Firefox :** l’application génère un fichier JSON standard à placer dans votre espace de fichiers.
+- **Importation :** le bouton “Importer” recharge immédiatement la sauvegarde pour restaurer ou synchroniser vos données.
+
+## 📝 Historique des évolutions
+
+Le détail des changements récents est documenté dans [CHANGELOG.md](CHANGELOG.md).

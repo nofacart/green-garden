@@ -62,7 +62,20 @@
                     <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 flex flex-col justify-between">
                         <div>
                             <h2 class="text-lg font-bold text-slate-900 mb-2 flex items-center gap-2">💧 Arrosage manuel</h2>
-                            <p class="text-slate-500 text-sm mb-4">Cochez les zones arrosées aujourd'hui (apport standard de 10mm).</p>
+                            <p class="text-slate-500 text-sm mb-4">Cochez les zones arrosées et renseignez la date et la quantité d'eau apportée.</p>
+
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+                                <label class="block text-sm font-medium text-slate-700">
+                                    Date d'arrosage
+                                    <input id="watering-date" type="date" class="mt-1 w-full border border-slate-300 rounded-xl px-3 py-2 text-sm">
+                                </label>
+                                <label class="block text-sm font-medium text-slate-700">
+                                    Quantité d'eau (L)
+                                    <input id="watering-volume" type="number" min="1" step="1" class="mt-1 w-full border border-slate-300 rounded-xl px-3 py-2 text-sm">
+                                    <span id="watering-volume-hint" class="mt-1 block text-[11px] text-slate-500">Apport standard recommandé : 10 L</span>
+                                </label>
+                            </div>
+
                             <div id="plants-checkboxes" class="space-y-2 max-h-48 overflow-y-auto p-1 mb-4">
                                 <!-- Injecté dynamiquement par JS -->
                             </div>
@@ -111,7 +124,12 @@
                 <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100">
                     <div class="flex items-center justify-between gap-3 mb-3">
                         <h2 class="text-lg font-bold text-slate-900">🌤️ Prévisions météo</h2>
-                        <span class="text-xs text-slate-500">5 jours</span>
+                        <div class="flex items-center gap-2">
+                            <span class="text-xs text-slate-500">5 jours</span>
+                            <button onclick="uiActualiserMeteo()" class="bg-sky-50 border border-sky-200 text-sky-800 hover:bg-sky-100 text-xs font-semibold px-3 py-1.5 rounded-full transition-colors">
+                                Actualiser
+                            </button>
+                        </div>
                     </div>
                     <p class="text-sm text-slate-600 mb-3">Utilisées pour orienter les prédictions d'arrosage et de tonte.</p>
                     <div id="weather-list" class="grid grid-cols-2 sm:grid-cols-5 gap-2 text-xs">
@@ -156,7 +174,43 @@
                 <!-- Section Gestion du Potager -->
                 <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
                     <h2 class="text-lg font-bold text-slate-900 mb-2">⚙️ Configuration de mon jardin</h2>
-                    <p class="text-slate-500 text-sm mb-6">Sélectionnez les plantes cultivées dans votre jardin pour adapter le suivi et les graphiques.</p>
+                    <p class="text-slate-500 text-sm mb-6">Choisissez votre localisation et le type de sol pour adapter la météo et les besoins en eau.</p>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
+                        <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                            <h3 class="text-sm font-semibold text-slate-800 mb-3">📍 Localisation du jardin</h3>
+                            <div class="space-y-3">
+                                <label class="block text-sm font-medium text-slate-700">
+                                    Nom de la localisation
+                                    <input id="garden-location-name" type="text" class="mt-1 w-full border border-slate-300 rounded-xl px-3 py-2 text-sm">
+                                </label>
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                    <label class="block text-sm font-medium text-slate-700">
+                                        Latitude
+                                        <input id="garden-latitude" type="number" step="0.0001" class="mt-1 w-full border border-slate-300 rounded-xl px-3 py-2 text-sm">
+                                    </label>
+                                    <label class="block text-sm font-medium text-slate-700">
+                                        Longitude
+                                        <input id="garden-longitude" type="number" step="0.0001" class="mt-1 w-full border border-slate-300 rounded-xl px-3 py-2 text-sm">
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                            <h3 class="text-sm font-semibold text-slate-800 mb-3">🪱 Type de sol</h3>
+                            <label class="block text-sm font-medium text-slate-700">
+                                Répartition de l’eau dans le sol
+                                <select id="garden-soil-type" class="mt-1 w-full border border-slate-300 rounded-xl px-3 py-2 text-sm">
+                                    <option value="sableux">Sableux</option>
+                                    <option value="limoneux">Limoneux</option>
+                                    <option value="argileux">Argileux</option>
+                                    <option value="tourbeux">Tourbeux</option>
+                                </select>
+                            </label>
+                            <p class="text-xs text-slate-500 mt-3">Le type de sol ajuste les besoins en eau estimés pour chaque culture.</p>
+                        </div>
+                    </div>
                     
                     <div id="settings-plants-container" class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6 max-h-96 overflow-y-auto p-1">
                         <!-- Injecté dynamiquement par JS -->
@@ -256,13 +310,51 @@
             };
         }
 
+        const SOL_FACTORS = {
+            sableux: 1.25,
+            limoneux: 1,
+            argileux: 0.85,
+            tourbeux: 0.75
+        };
+
         function getSettingsDefaults() {
             return {
                 plantesChoisies: ['Pelouse', 'Tomate', 'Courgette', 'Basilic'],
                 cultures: [],
                 seuilTonteCm: 7,
-                hauteurCibleTonteCm: 5
+                hauteurCibleTonteCm: 5,
+                localisation: {
+                    nom: CONFIG_JARDIN.location.nom,
+                    latitude: CONFIG_JARDIN.location.latitude,
+                    longitude: CONFIG_JARDIN.location.longitude
+                },
+                typeSol: 'limoneux'
             };
+        }
+
+        function getActiveGardenLocation() {
+            const localisation = DataManager.parametres?.localisation || CONFIG_JARDIN.location;
+            return {
+                nom: localisation.nom || CONFIG_JARDIN.location.nom,
+                latitude: Number(localisation.latitude) || CONFIG_JARDIN.location.latitude,
+                longitude: Number(localisation.longitude) || CONFIG_JARDIN.location.longitude
+            };
+        }
+
+        function getSoilFactor(typeSol = 'limoneux') {
+            return SOL_FACTORS[typeSol] || 1;
+        }
+
+        function getStandardWateringVolume() {
+            const typeSol = (DataManager.parametres?.typeSol || 'limoneux').toString();
+            const standardBySoil = {
+                sableux: 12,
+                limoneux: 10,
+                argileux: 8,
+                tourbeux: 7
+            };
+
+            return standardBySoil[typeSol] || 10;
         }
 
         function getCultureRecords() {
@@ -377,7 +469,7 @@
         // ==========================================
         const WeatherUtils = {
             async fetchWeather() {
-                const { latitude, longitude } = CONFIG_JARDIN.location;
+                const { latitude, longitude } = getActiveGardenLocation();
                 const url = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&daily=temperature_2m_max,precipitation_sum&timezone=Europe/Paris&past_days=3&forecast_days=5`;
 
                 try {
@@ -464,13 +556,14 @@
                     }
 
                     const config = CONFIG_JARDIN.famillesPlantes[plante] || { besoinEauStandardMm: 3 };
-                    let besoin = config.besoinEauStandardMm;
+                    const facteurSol = getSoilFactor(DataManager.parametres?.typeSol || 'limoneux');
+                    let besoin = config.besoinEauStandardMm * facteurSol;
 
                     if (temp > 30) besoin *= 1.3;
                     else if (temp < 15) besoin *= 0.7;
 
-                    const nbrArrosages = journal.arrosages.filter(evt => evt.date === dateStr && evt.plants.includes(plante)).length;
-                    const apportManuel = nbrArrosages * 10;
+                    const arrosagesDuJour = journal.arrosages.filter(evt => evt.date === dateStr && evt.plants.includes(plante));
+                    const apportManuel = arrosagesDuJour.reduce((total, evt) => total + (Number(evt.litres) || 0), 0);
 
                     let deficit = deficitPrecedent + besoin - pluie - apportManuel;
                     if (deficit < -5) deficit = -5;
@@ -588,7 +681,7 @@
         function renderHistory() {
             const tbody = document.getElementById('table-history-body');
             const evenements = [
-                ...DataManager.journal.arrosages.map(a => ({ date: a.date, type: "💧 Arrosage", details: a.plants.join(', ') })),
+                ...DataManager.journal.arrosages.map(a => ({ date: a.date, type: "💧 Arrosage", details: `${a.plants.join(', ')} • ${Number(a.litres) || 0} L` })),
                 ...DataManager.journal.tontes.map(t => ({ date: t.date, type: "✂️ Tonte", details: `Hauteur : ${t.hauteur} cm` }))
             ].sort((a, b) => b.date.localeCompare(a.date));
 
@@ -608,13 +701,30 @@
 
         function renderWeatherView(donneesMeteo) {
             const container = document.getElementById('weather-list');
-            container.innerHTML = donneesMeteo.map(m => `
-                <div class="bg-slate-50 p-2.5 rounded-xl border border-slate-200 flex flex-col gap-1">
-                    <p class="font-bold text-slate-700 text-[11px]">${m.date}</p>
-                    <p class="text-amber-700">🌡️ ${m.maxTemp}°C</p>
-                    <p class="text-blue-700">🌧️ ${m.rainMm} mm</p>
+            const localisation = getActiveGardenLocation();
+            const typeSol = (DataManager.parametres?.typeSol || 'limoneux').toString();
+            const typeSolLabel = typeSol.charAt(0).toUpperCase() + typeSol.slice(1);
+
+            container.innerHTML = `
+                <div class="col-span-full rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-[11px] text-sky-900">
+                    <strong>${escapeHtml(localisation.nom)}</strong> • Sol ${escapeHtml(typeSolLabel)}
                 </div>
-            `).join('');
+                ${donneesMeteo.map(m => `
+                    <div class="bg-slate-50 p-2.5 rounded-xl border border-slate-200 flex flex-col gap-1">
+                        <p class="font-bold text-slate-700 text-[11px]">${m.date}</p>
+                        <p class="text-amber-700">🌡️ ${m.maxTemp}°C</p>
+                        <p class="text-blue-700">🌧️ ${m.rainMm} mm</p>
+                    </div>
+                `).join('')}
+            `;
+        }
+
+        function syncGardenSettingsInputs() {
+            const localisation = getActiveGardenLocation();
+            document.getElementById('garden-location-name').value = localisation.nom || '';
+            document.getElementById('garden-latitude').value = localisation.latitude;
+            document.getElementById('garden-longitude').value = localisation.longitude;
+            document.getElementById('garden-soil-type').value = DataManager.parametres?.typeSol || 'limoneux';
         }
 
         function renderSettingsView() {
@@ -713,7 +823,8 @@
                 } else {
                     for (const meteo of previsions) {
                         const config = CONFIG_JARDIN.famillesPlantes[plante] || { besoinEauStandardMm: 3 };
-                        let besoin = config.besoinEauStandardMm;
+                        const facteurSol = getSoilFactor(DataManager.parametres?.typeSol || 'limoneux');
+                        let besoin = config.besoinEauStandardMm * facteurSol;
 
                         if (meteo.maxTemp > 30) besoin *= 1.3;
                         else if (meteo.maxTemp < 15) besoin *= 0.7;
@@ -812,6 +923,9 @@
             const plantesActives = getCulturesActives();
             const prochainePrevision = predireProchainArrosage();
             const prochaineTonte = predireProchaineTonte();
+            const localisation = getActiveGardenLocation();
+            const typeSol = (DataManager.parametres?.typeSol || 'limoneux').toString();
+            const typeSolLabel = typeSol.charAt(0).toUpperCase() + typeSol.slice(1);
 
             const activeNames = plantesActives.map(c => c.nom);
             const focusPlantes = activeNames.length > 0 ? activeNames.join(', ') : 'Aucune plante active';
@@ -823,8 +937,8 @@
                     badge: 'Suivi',
                     value: `${plantesActives.length}`,
                     detail: plantesActives.length > 0
-                        ? `Cultures actuellement suivies : ${focusPlantes}`
-                        : 'Aucune culture active pour le moment',
+                        ? `Cultures actuellement suivies : ${focusPlantes} • ${localisation.nom} • Sol ${typeSolLabel}`
+                        : `Aucune culture active pour le moment • ${localisation.nom} • Sol ${typeSolLabel}`,
                     tone: 'bg-emerald-50 text-emerald-900 border-emerald-200'
                 },
                 {
@@ -1152,13 +1266,41 @@
         // ==========================================
         // 9. ACTIONS UTILISATEUR & LANCEMENT
         // ==========================================
+        async function uiActualiserMeteo() {
+            const localisation = getActiveGardenLocation();
+            document.getElementById('global-status').innerText = `Connexion météo à ${localisation.nom}...`;
+
+            try {
+                meteoActuelle = await WeatherUtils.fetchWeather();
+                document.getElementById('global-status').className = "bg-emerald-50 text-emerald-800 border border-emerald-200 rounded-full px-4 py-1.5 text-xs font-semibold shadow-sm";
+                document.getElementById('global-status').innerText = `☀️ Connecté • ${localisation.nom}`;
+                renderWeatherView(meteoActuelle);
+                GardenLogic.mettreAJourDeficits(DataManager, meteoActuelle);
+                renderDashboardSummary();
+                renderMetrics();
+                renderRecommendations();
+                renderChart();
+                alert("🌤️ Prévisions météo mises à jour.");
+            } catch (e) {
+                document.getElementById('global-status').className = "bg-amber-50 text-amber-800 border border-amber-200 rounded-full px-4 py-1.5 text-xs font-semibold shadow-sm";
+                document.getElementById('global-status').innerText = `⚠️ Mode hors-ligne`;
+                alert("⚠️ Impossible de récupérer les prévisions météo pour cette localisation.");
+            }
+        }
+
         function uiEnregistrerArrosage() {
             const checked = Array.from(document.querySelectorAll('input[name="plants-watering"]:checked')).map(i => i.value);
+            const dateArrosage = document.getElementById('watering-date')?.value || getLocalTodayString();
+            const litresRaw = document.getElementById('watering-volume')?.value;
+            const litres = Math.max(0, Number(litresRaw || getStandardWateringVolume()));
+
             if (checked.length === 0) return alert("Choisissez au moins une zone !");
+            if (!Number.isFinite(litres) || litres <= 0) return alert("Saisissez une quantité d'eau supérieure à 0 L.");
 
             DataManager.journal.arrosages.push({
-                date: getLocalTodayString(),
-                plants: checked
+                date: dateArrosage,
+                plants: checked,
+                litres
             });
             DataManager.sauvegarderJournal();
             
@@ -1167,7 +1309,7 @@
             renderHistory();
             renderRecommendations();
             renderChart();
-            alert("💧 Arrosage enregistré !");
+            alert(`💧 Arrosage de ${litres} L enregistré pour le ${dateArrosage} !`);
         }
 
         function uiEnregistrerTonte() {
@@ -1267,9 +1409,30 @@
             const checked = Array.from(document.querySelectorAll('input[name="settings-plants"]:checked')).map(i => i.value);
             if (checked.length === 0) return alert("Veuillez sélectionner au moins une culture !");
 
+            const nomLocalisation = document.getElementById('garden-location-name').value.trim() || CONFIG_JARDIN.location.nom;
+            const latitude = Number(document.getElementById('garden-latitude').value);
+            const longitude = Number(document.getElementById('garden-longitude').value);
+            const typeSol = document.getElementById('garden-soil-type').value || 'limoneux';
+
+            DataManager.parametres.localisation = {
+                nom: nomLocalisation,
+                latitude: Number.isFinite(latitude) ? latitude : CONFIG_JARDIN.location.latitude,
+                longitude: Number.isFinite(longitude) ? longitude : CONFIG_JARDIN.location.longitude
+            };
+            DataManager.parametres.typeSol = typeSol;
             DataManager.parametres.plantesChoisies = normalizePlantSelection(checked);
             syncCultureRecordsFromSelection();
             DataManager.save(DataManager.KEYS.PARAMETRES, DataManager.parametres);
+
+            const wateringVolumeInput = document.getElementById('watering-volume');
+            const wateringHint = document.getElementById('watering-volume-hint');
+            if (wateringVolumeInput) {
+                const standardVolume = getStandardWateringVolume();
+                wateringVolumeInput.value = standardVolume;
+                if (wateringHint) {
+                    wateringHint.textContent = `Apport standard recommandé : ${standardVolume} L`;
+                }
+            }
             
             GardenLogic.mettreAJourDeficits(DataManager, meteoActuelle);
             
@@ -1279,19 +1442,41 @@
             renderRecommendations();
             renderChart();
             renderGardenManagement();
+            syncGardenSettingsInputs();
             
-            alert("⚙️ Réglages enregistrés ! La liste de vos plantes a été mise à jour.");
+            alert("⚙️ Réglages enregistrés ! Votre localisation et votre type de sol ont été mis à jour.");
             switchTab('tab-suivi');
+        }
+
+        function initialiserChampsArrosage() {
+            const wateringDateInput = document.getElementById('watering-date');
+            const wateringVolumeInput = document.getElementById('watering-volume');
+            const wateringHint = document.getElementById('watering-volume-hint');
+
+            if (wateringDateInput) {
+                wateringDateInput.value = getLocalTodayString();
+            }
+
+            if (wateringVolumeInput) {
+                const standardVolume = getStandardWateringVolume();
+                wateringVolumeInput.value = standardVolume;
+                if (wateringHint) {
+                    wateringHint.textContent = `Apport standard recommandé : ${standardVolume} L`;
+                }
+            }
         }
 
         async function demarrerApplication() {
             DataManager.initDatabase();
-            document.getElementById('global-status').innerText = `Connexion météo à ${CONFIG_JARDIN.location.nom}...`;
+            syncGardenSettingsInputs();
+            initialiserChampsArrosage();
+            const localisation = getActiveGardenLocation();
+            document.getElementById('global-status').innerText = `Connexion météo à ${localisation.nom}...`;
 
             try {
                 meteoActuelle = await WeatherUtils.fetchWeather();
                 document.getElementById('global-status').className = "bg-emerald-50 text-emerald-800 border border-emerald-200 rounded-full px-4 py-1.5 text-xs font-semibold shadow-sm";
-                document.getElementById('global-status').innerText = `☀️ Connecté • ${CONFIG_JARDIN.location.nom}`;
+                document.getElementById('global-status').innerText = `☀️ Connecté • ${localisation.nom}`;
             } catch (e) {
                 meteoActuelle = HISTORIQUE_METEO_SECOURS;
                 document.getElementById('global-status').className = "bg-amber-50 text-amber-800 border border-amber-200 rounded-full px-4 py-1.5 text-xs font-semibold shadow-sm";

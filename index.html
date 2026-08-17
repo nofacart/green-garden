@@ -7,8 +7,21 @@
     <!-- Chargement des bibliothèques graphiques et CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .dashboard-card-potager { border-color: #7dd3fc; background-color: #eff6ff; }
+        .dashboard-card-ornemental { border-color: #fecdd3; background-color: #fff1f2; }
+        .dashboard-card-pelouse { border-color: #bef264; background-color: #ecfccb; }
+        .dashboard-badge-potager { background-color: #e0f2fe; color: #0c4a6e; }
+        .dashboard-badge-ornemental { background-color: #ffe4e6; color: #9f1239; }
+        .dashboard-badge-pelouse { background-color: #ecfccb; color: #365314; }
+        .dashboard-title-potager { color: #0c4a6e; }
+        .dashboard-title-ornemental { color: #9f1239; }
+        .dashboard-title-pelouse { color: #365314; }
+    </style>
 </head>
 <body class="bg-slate-50 text-slate-800 antialiased font-sans">
+
+    <div id="toast-container" class="fixed bottom-4 right-4 left-4 sm:left-auto z-[9999] flex flex-col gap-2 items-stretch sm:items-end pointer-events-none"></div>
 
     <div class="max-w-4xl mx-auto px-4 py-6">
         
@@ -112,7 +125,6 @@
                     </div>
                 </div>
 
-                <!-- Section indicateurs dynamiques -->
                 <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
                     <h2 class="text-lg font-bold text-slate-900 mb-4">💧 État Hydrique du Sol (Déficits accumulés)</h2>
                     <div id="metrics-container" class="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -232,6 +244,52 @@
                     </div>
                 </div>
 
+                <!-- Formulaire Goutte à goutte automatique -->
+                <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
+                    <div class="flex items-center justify-between gap-3 mb-2">
+                        <h2 class="text-lg font-bold text-slate-900 flex items-center gap-2">🚿 Goutte à goutte automatique</h2>
+                        <label class="inline-flex items-center gap-2 cursor-pointer">
+                            <input type="checkbox" id="drip-active" class="w-4 h-4 accent-cyan-600">
+                            <span class="text-sm font-medium text-slate-700">Activé</span>
+                        </label>
+                    </div>
+                    <p class="text-slate-500 text-sm mb-4">Renseignez le programme de votre système : l'appli comptabilise automatiquement chaque passage dans le calcul du déficit hydrique, même si vous ne vous connectez que plusieurs jours plus tard.</p>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
+                        <label class="block text-sm font-medium text-slate-700">
+                            Quantité par passage (L)
+                            <input id="drip-volume" type="number" min="0.5" step="0.5" class="mt-1 w-full border border-slate-300 rounded-xl px-3 py-2 text-sm">
+                            <span class="mt-1 block text-[11px] text-slate-500">Total délivré à chaque déclenchement, réparti entre les zones cochées</span>
+                        </label>
+                        <label class="block text-sm font-medium text-slate-700">
+                            Durée du cycle (min)
+                            <input id="drip-duration" type="number" min="0" step="1" class="mt-1 w-full border border-slate-300 rounded-xl px-3 py-2 text-sm">
+                            <span class="mt-1 block text-[11px] text-slate-500">Indicatif seulement, n'affecte pas le calcul</span>
+                        </label>
+                        <label class="block text-sm font-medium text-slate-700">
+                            Fréquence (tous les X jours)
+                            <input id="drip-frequency" type="number" min="1" step="1" class="mt-1 w-full border border-slate-300 rounded-xl px-3 py-2 text-sm">
+                        </label>
+                    </div>
+
+                    <label class="block text-sm font-medium text-slate-700 mb-4">
+                        Date de référence d'un passage
+                        <input id="drip-reference-date" type="date" class="mt-1 w-full sm:w-1/3 border border-slate-300 rounded-xl px-3 py-2 text-sm">
+                        <span class="mt-1 block text-[11px] text-slate-500">Une date (passée ou aujourd'hui) où le programmateur s'est déclenché — sert de point de repère pour calculer les jours suivants</span>
+                    </label>
+
+                    <p class="text-sm font-medium text-slate-700 mb-2">Zones desservies par le goutte-à-goutte :</p>
+                    <div id="drip-checkboxes" class="space-y-2 max-h-48 overflow-y-auto p-1 mb-4">
+                        <!-- Injecté dynamiquement par JS -->
+                    </div>
+
+                    <p id="drip-status" class="text-xs text-slate-500 mb-4"></p>
+
+                    <button onclick="uiEnregistrerGoutteAGoutte()" class="w-full bg-cyan-600 hover:bg-cyan-700 text-white font-medium py-2.5 px-4 rounded-xl transition-colors shadow-sm">
+                        💾 Enregistrer le programme
+                    </button>
+                </div>
+
                 <!-- SECTION GESTION DETAILLEE DU JARDIN -->
                 <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
                     <h2 class="text-lg font-bold text-slate-900 mb-2">🌿 Gestion détaillée du jardin</h2>
@@ -239,6 +297,13 @@
 
                     <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
                         <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                            <label class="block text-sm font-medium text-slate-700 mb-2">Filtrer par catégorie</label>
+                            <select id="new-culture-category" onchange="fillCultureSelectOptions()" class="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm mb-3">
+                                <option value="">Toutes les catégories</option>
+                                <option value="potager">Potager</option>
+                                <option value="ornemental">Ornemental</option>
+                                <option value="pelouse">Pelouse</option>
+                            </select>
                             <label class="block text-sm font-medium text-slate-700 mb-2">Plante à ajouter</label>
                             <select id="new-culture-select" class="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm mb-3">
                                 <option value="">Choisir une plante</option>
@@ -296,10 +361,45 @@
                 .replace(/'/g, '&#039;');
         }
 
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toast-container');
+            if (!container) { console.log(message); return; }
+
+            const stylesByType = {
+                success: 'bg-emerald-50 border-emerald-200 text-emerald-800',
+                error: 'bg-rose-50 border-rose-200 text-rose-800',
+                warning: 'bg-amber-50 border-amber-200 text-amber-800',
+                info: 'bg-sky-50 border-sky-200 text-sky-800'
+            };
+            const iconByType = { success: '✅', error: '⚠️', warning: '⚠️', info: 'ℹ️' };
+            const classes = stylesByType[type] || stylesByType.info;
+
+            const toast = document.createElement('div');
+            toast.className = `pointer-events-auto max-w-sm w-full sm:w-auto border rounded-2xl shadow-lg px-4 py-3 text-sm font-medium opacity-0 translate-y-2 transition-all duration-300 ${classes}`;
+            toast.innerHTML = `<span class="mr-1.5">${iconByType[type] || iconByType.info}</span>${escapeHtml(message)}`;
+            container.appendChild(toast);
+
+            requestAnimationFrame(() => {
+                toast.classList.remove('opacity-0', 'translate-y-2');
+            });
+
+            setTimeout(() => {
+                toast.classList.add('opacity-0', 'translate-y-2');
+                setTimeout(() => toast.remove(), 300);
+            }, 3800);
+        }
+
         function normalizePlantSelection(plantes) {
             const selected = Array.isArray(plantes) ? plantes : [];
             const validNames = Object.keys(CONFIG_JARDIN.famillesPlantes);
             return [...new Set(selected.filter(plant => validNames.includes(plant)))];
+        }
+
+        function samePlantSelection(a = [], b = []) {
+            if (!Array.isArray(a) || !Array.isArray(b) || a.length !== b.length) return false;
+            const sortedA = [...a].sort();
+            const sortedB = [...b].sort();
+            return sortedA.every((value, index) => value === sortedB[index]);
         }
 
         function getDefaultCultureRecord(nom) {
@@ -319,7 +419,7 @@
 
         function getSettingsDefaults() {
             return {
-                plantesChoisies: ['Pelouse', 'Tomate', 'Courgette', 'Basilic'],
+                plantesChoisies: ['Pelouse', 'Tomate', 'Courgette', 'Basilic', 'Lavande', 'Roses'],
                 cultures: [],
                 seuilTonteCm: 7,
                 hauteurCibleTonteCm: 5,
@@ -328,7 +428,16 @@
                     latitude: CONFIG_JARDIN.location.latitude,
                     longitude: CONFIG_JARDIN.location.longitude
                 },
-                typeSol: 'limoneux'
+                typeSol: 'limoneux',
+                goutteAGoutte: {
+                    actif: false,
+                    zones: [],
+                    quantiteL: 10,
+                    dureeMin: 15,
+                    frequenceJours: 2,
+                    dateReference: getLocalTodayString()
+                },
+                goutteAGoutteHistorique: []
             };
         }
 
@@ -345,6 +454,114 @@
             return SOL_FACTORS[typeSol] || 1;
         }
 
+        function getReserveUtileMaxMm(typeSol = 'limoneux') {
+            // Capacité de réserve utile approximative du sol (mm) : au-delà de ce déficit,
+            // le sol a atteint son point de flétrissement pratique et un arrosage copieux
+            // recharge entièrement le profil, quelle que soit la durée de la sécheresse.
+            // Un sol sableux retient moins d'eau (plafond plus bas), un sol argileux/tourbeux
+            // en retient plus (plafond plus haut) — on réutilise donc l'inverse du facteur de sol.
+            return 15 / getSoilFactor(typeSol);
+        }
+
+        function getVersionGoutteAGoutteALaDate(dateStr) {
+            const historique = DataManager.parametres?.goutteAGoutteHistorique;
+            if (!Array.isArray(historique) || historique.length === 0) return null;
+
+            const timestamp = dateToTimestamp(dateStr);
+            if (timestamp === null) return null;
+
+            let versionApplicable = null;
+            let meilleurDepuis = -Infinity;
+
+            historique.forEach(version => {
+                const depuisTimestamp = dateToTimestamp(version.depuis);
+                if (depuisTimestamp !== null && depuisTimestamp <= timestamp && depuisTimestamp > meilleurDepuis) {
+                    versionApplicable = version;
+                    meilleurDepuis = depuisTimestamp;
+                }
+            });
+
+            return versionApplicable;
+        }
+
+        function getVersionGoutteAGoutteActuelle() {
+            const historique = DataManager.parametres?.goutteAGoutteHistorique;
+            if (!Array.isArray(historique) || historique.length === 0) return null;
+            return getVersionGoutteAGoutteALaDate(getLocalTodayString()) || historique[historique.length - 1];
+        }
+
+        function estJourGoutteAGoutte(dateStr, plante) {
+            const gag = getVersionGoutteAGoutteALaDate(dateStr);
+            if (!gag || !gag.actif) return false;
+            if (!Array.isArray(gag.zones) || !gag.zones.includes(plante)) return false;
+            if (!gag.dateReference) return false;
+
+            const jourRef = dateToTimestamp(gag.dateReference);
+            const jourCourant = dateToTimestamp(dateStr);
+            if (jourRef === null || jourCourant === null || jourCourant < jourRef) return false;
+
+            const frequence = Math.max(1, Number(gag.frequenceJours) || 1);
+            const diffJours = Math.round((jourCourant - jourRef) / 86400000);
+            return diffJours % frequence === 0;
+        }
+
+        function getApportGoutteAGoutte(dateStr, plante) {
+            if (!estJourGoutteAGoutte(dateStr, plante)) return 0;
+            const gag = getVersionGoutteAGoutteALaDate(dateStr);
+            const nbZones = Array.isArray(gag.zones) && gag.zones.length > 0 ? gag.zones.length : 1;
+            return (Number(gag.quantiteL) || 0) / nbZones;
+        }
+
+        function getPlantCategory(name) {
+            const config = CONFIG_JARDIN.famillesPlantes[name] || {};
+            if (config.category) return config.category;
+            if (name === 'Pelouse') return 'pelouse';
+            return 'potager';
+        }
+
+        function getPlantWaterNeed(plante) {
+            const config = CONFIG_JARDIN.famillesPlantes[plante] || {};
+            if (config.family && CONFIG_JARDIN.famillesOrnementales?.[config.family]) {
+                return CONFIG_JARDIN.famillesOrnementales[config.family].besoinEauStandardMm;
+            }
+            if (config.besoinEauStandardMm !== undefined) {
+                return config.besoinEauStandardMm;
+            }
+            return 3.0;
+        }
+
+        function getPlantFamilyLabel(plante) {
+            const config = CONFIG_JARDIN.famillesPlantes[plante] || {};
+            if (config.family && CONFIG_JARDIN.famillesOrnementales?.[config.family]) {
+                return CONFIG_JARDIN.famillesOrnementales[config.family].label;
+            }
+            return '';
+        }
+
+        const CATEGORY_INFOS = {
+            potager: {
+                label: 'Potager',
+                icon: '🥕',
+                cardClass: 'dashboard-card-potager',
+                titleClass: 'dashboard-title-potager',
+                badgeClass: 'dashboard-badge-potager'
+            },
+            ornemental: {
+                label: 'Ornemental',
+                icon: '🌸',
+                cardClass: 'dashboard-card-ornemental',
+                titleClass: 'dashboard-title-ornemental',
+                badgeClass: 'dashboard-badge-ornemental'
+            },
+            pelouse: {
+                label: 'Pelouse',
+                icon: '🌱',
+                cardClass: 'dashboard-card-pelouse',
+                titleClass: 'dashboard-title-pelouse',
+                badgeClass: 'dashboard-badge-pelouse'
+            }
+        };
+
         function getStandardWateringVolume() {
             const typeSol = (DataManager.parametres?.typeSol || 'limoneux').toString();
             const standardBySoil = {
@@ -355,6 +572,29 @@
             };
 
             return standardBySoil[typeSol] || 10;
+        }
+
+        function calculerBesoinArrosageZones(zones) {
+            if (!Array.isArray(zones) || zones.length === 0) return 0;
+            const total = zones.reduce((acc, p) => acc + Math.max(0, DataManager.etat.deficitsAccumules[p] || 0), 0);
+            return Math.round(total * 10) / 10;
+        }
+
+        function uiActualiserSuggestionArrosage() {
+            const wateringVolumeInput = document.getElementById('watering-volume');
+            const wateringHint = document.getElementById('watering-volume-hint');
+            if (!wateringVolumeInput) return;
+
+            const checked = Array.from(document.querySelectorAll('input[name="plants-watering"]:checked')).map(i => i.value);
+            const besoin = calculerBesoinArrosageZones(checked);
+            const suggestion = besoin > 0 ? besoin : getStandardWateringVolume();
+
+            wateringVolumeInput.value = suggestion;
+            if (wateringHint) {
+                wateringHint.textContent = besoin > 0
+                    ? `Besoin estimé pour la sélection : ${suggestion} L (déficit cumulé des zones cochées)`
+                    : `Sol déjà humide pour la sélection : ${suggestion} L suffisent en entretien`;
+            }
         }
 
         function getCultureRecords() {
@@ -372,6 +612,30 @@
             if (!dateString) return null;
             const [year, month, day] = dateString.split('-').map(Number);
             return new Date(year, month - 1, day).getTime();
+        }
+
+        const HISTORIQUE_RETENTION_JOURS = 365;
+
+        function purgerHistoriqueAncien() {
+            const seuilTimestamp = dateToTimestamp(getLocalTodayString()) - HISTORIQUE_RETENTION_JOURS * 86400000;
+
+            const arrosagesAvant = DataManager.journal.arrosages.length;
+            const tontesAvant = DataManager.journal.tontes.length;
+
+            DataManager.journal.arrosages = DataManager.journal.arrosages.filter(evt => {
+                const t = dateToTimestamp(evt.date);
+                return t === null || t >= seuilTimestamp;
+            });
+            DataManager.journal.tontes = DataManager.journal.tontes.filter(evt => {
+                const t = dateToTimestamp(evt.date);
+                return t === null || t >= seuilTimestamp;
+            });
+
+            const supprimes = (arrosagesAvant - DataManager.journal.arrosages.length) + (tontesAvant - DataManager.journal.tontes.length);
+            if (supprimes > 0) {
+                DataManager.sauvegarderJournal();
+            }
+            return supprimes;
         }
 
         function estCultureActive(culture) {
@@ -415,16 +679,22 @@
         // ==========================================
         const CONFIG_JARDIN = {
             location: { latitude: 43.65, longitude: 1.38, nom: "Beauzelle" },
+            famillesOrnementales: {
+                rose: { label: 'Rosaceae', besoinEauStandardMm: 3.2, icone: '🌹' },
+                lamiacee: { label: 'Lamiacées', besoinEauStandardMm: 2.8, icone: '🌸' },
+                bulbe: { label: 'Bulbes', besoinEauStandardMm: 3.0, icone: '🌷' },
+                hydrangea: { label: 'Hydrangeaceae', besoinEauStandardMm: 3.4, icone: '🌼' }
+            },
             famillesPlantes: {
-                "Pelouse": { besoinEauStandardMm: 4.0, icone: "🌱", favoris: [], maladies: "Fusariose" },
+                "Pelouse": { icone: "🌱", favoris: [], maladies: "Fusariose" },
                 "Tomate": { besoinEauStandardMm: 4.6, icone: "🍅", favoris: ["Basilic", "Carotte", "Oignon"], maladies: "Mildiou, Cul noir" },
                 "Courgette": { besoinEauStandardMm: 4.2, icone: "🥒", favoris: ["Haricot", "Maïs"], maladies: "Oïdium, Mildiou" },
                 "Melon": { besoinEauStandardMm: 4.2, icone: "🍈", favoris: ["Maïs", "Radis"], maladies: "Oïdium, Pucerons" },
                 "Concombre": { besoinEauStandardMm: 4.2, icone: "🥒", favoris: ["Haricot", "Maïs", "Aneth"], maladies: "Mildiou, Oïdium" },
                 "Potimarron": { besoinEauStandardMm: 4.2, icone: "🎃", favoris: ["Maïs", "Haricot"], maladies: "Oïdium, Pucerons" },
                 "Haricot vert": { besoinEauStandardMm: 4.0, icone: "🫛", favoris: ["Carotte", "Concombre", "Maïs"], maladies: "Anthracnose, Rouille" },
-                "Pois": { besoinEauStandardMm: 4.0, icone: "𫫝", favoris: ["Carotte", "Navet", "Radis"], maladies: "Mildiou, Oïdium" },
-                "Fève": { besoinEauStandardMm: 4.0, icone: "𫫝", favoris: ["Chou", "Épinard"], maladies: "Rouille, Pucerons noirs" },
+                "Pois": { besoinEauStandardMm: 4.0, icone: "🟢", favoris: ["Carotte", "Navet", "Radis"], maladies: "Mildiou, Oïdium" },
+                "Fève": { besoinEauStandardMm: 4.0, icone: "🫘", favoris: ["Chou", "Épinard"], maladies: "Rouille, Pucerons noirs" },
                 "Aubergine": { besoinEauStandardMm: 4.0, icone: "🍆", favoris: ["Haricot", "Poivron"], maladies: "Mildiou, Verticilliose" },
                 "Poivron": { besoinEauStandardMm: 4.0, icone: "🫑", favoris: ["Basilic", "Carotte"], maladies: "Mildiou, Pucerons" },
                 "Laitue": { besoinEauStandardMm: 4.0, icone: "🥬", favoris: ["Carotte", "Radis", "Fraise"], maladies: "Mildiou, Pucerons" },
@@ -445,6 +715,10 @@
                 "Coriandre": { besoinEauStandardMm: 3.4, icone: "🌿", favoris: ["Aneth", "Pomme de terre"], maladies: "Montée en graines rapide" },
                 "Persil": { besoinEauStandardMm: 3.4, icone: "🌿", favoris: ["Tomate", "Radis"], maladies: "Septoriose" },
                 "Cerfeuil": { besoinEauStandardMm: 3.4, icone: "🌿", favoris: ["Radis", "Laitue"], maladies: "Montée en graines rapide" },
+                "Roses": { besoinEauStandardMm: 3.2, icone: "🌹", favoris: ["Lavande", "Romarin"], maladies: "Oidium, Rouille", category: 'ornemental', family: 'rose' },
+                "Lavande": { besoinEauStandardMm: 2.8, icone: "🌸", favoris: ["Roses", "Thym"], maladies: "Pourriture racinaire", category: 'ornemental', family: 'lamiacee' },
+                "Tulipe": { besoinEauStandardMm: 3.0, icone: "🌷", favoris: ["Pâquerette", "Iris"], maladies: "Botrytis", category: 'ornemental', family: 'bulbe' },
+                "Hortensia": { besoinEauStandardMm: 3.4, icone: "🌼", favoris: ["Fougère", "Buis"], maladies: "Mildiou", category: 'ornemental', family: 'hydrangea' },
                 "Chou": { besoinEauStandardMm: 3.8, icone: "🥦", favoris: ["Menthe", "Romarin", "Thym"], maladies: "Hernie, Pucerons" },
                 "Brocoli": { besoinEauStandardMm: 3.8, icone: "🥦", favoris: ["Pomme de terre", "Oignon"], maladies: "Hernie, Pucerons" },
                 "Chou-fleur": { besoinEauStandardMm: 3.8, icone: "🥦", favoris: ["Céleri", "Pomme de terre"], maladies: "Hernie, Pucerons" },
@@ -458,7 +732,7 @@
         };
 
         const HISTORIQUE_METEO_SECOURS = [
-            { date: getLocalTodayString(), rainMm: 0, maxTemp: 25 }
+            { date: getLocalTodayString(), rainMm: 0, maxTemp: 25, minTemp: 12 }
         ];
 
         let meteoActuelle = [];
@@ -470,18 +744,35 @@
         const WeatherUtils = {
             async fetchWeather() {
                 const { latitude, longitude } = getActiveGardenLocation();
-                const url = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&daily=temperature_2m_max,precipitation_sum&timezone=Europe/Paris&past_days=3&forecast_days=5`;
+
+                // On récupère assez de jours passés pour couvrir l'écart depuis la dernière
+                // visite (utile si l'irrigation, la pluie ou le goutte-à-goutte ont continué
+                // à agir pendant l'absence). L'API Open-Meteo accepte jusqu'à 92 jours passés.
+                const aujourdhui = getLocalTodayString();
+                const dernierCalcul = DataManager.etat?.dernierCalcul;
+                let pastDays = 3;
+                if (dernierCalcul) {
+                    const joursEcart = Math.round((dateToTimestamp(aujourdhui) - dateToTimestamp(dernierCalcul)) / 86400000);
+                    pastDays = Math.min(92, Math.max(3, joursEcart + 1));
+                }
+
+                const url = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&daily=temperature_2m_max,temperature_2m_min,precipitation_sum&timezone=Europe/Paris&past_days=${pastDays}&forecast_days=5`;
 
                 try {
                     const response = await fetch(url);
                     if (!response.ok) throw new Error("Erreur réseau");
                     const data = await response.json();
                     
-                    return data.daily.time.map((date, index) => ({
-                        date: date,
-                        rainMm: data.daily.precipitation_sum[index] || 0,
-                        maxTemp: Math.round(data.daily.temperature_2m_max[index])
-                    }));
+                    return data.daily.time.map((date, index) => {
+                        const maxTemp = Math.round(data.daily.temperature_2m_max[index]);
+                        const minTempBrut = data.daily.temperature_2m_min?.[index];
+                        return {
+                            date: date,
+                            rainMm: data.daily.precipitation_sum[index] || 0,
+                            maxTemp: maxTemp,
+                            minTemp: Number.isFinite(minTempBrut) ? Math.round(minTempBrut) : maxTemp - 8
+                        };
+                    });
                 } catch (error) {
                     console.error("Échec API météo, bascule mode secours :", error);
                     throw error;
@@ -519,6 +810,27 @@
                 this.parametres.cultures = Array.isArray(this.parametres.cultures) ? this.parametres.cultures : [];
                 this.parametres.seuilTonteCm = Number(this.parametres.seuilTonteCm || 7);
                 this.parametres.hauteurCibleTonteCm = Number(this.parametres.hauteurCibleTonteCm || 5);
+                const gagDefaut = getSettingsDefaults().goutteAGoutte;
+                const gagBrut = (this.parametres.goutteAGoutte && typeof this.parametres.goutteAGoutte === 'object') ? this.parametres.goutteAGoutte : {};
+                const gagSanitized = {
+                    actif: Boolean(gagBrut.actif),
+                    zones: Array.isArray(gagBrut.zones) ? gagBrut.zones : gagDefaut.zones,
+                    quantiteL: Number(gagBrut.quantiteL) || gagDefaut.quantiteL,
+                    dureeMin: Number(gagBrut.dureeMin) || gagDefaut.dureeMin,
+                    frequenceJours: Math.max(1, Number(gagBrut.frequenceJours) || gagDefaut.frequenceJours),
+                    dateReference: gagBrut.dateReference || gagDefaut.dateReference
+                };
+                this.parametres.goutteAGoutte = gagSanitized;
+
+                if (!Array.isArray(this.parametres.goutteAGoutteHistorique)) {
+                    this.parametres.goutteAGoutteHistorique = [];
+                }
+                // Migration : une config déjà active avant l'introduction de l'historique versionné
+                // devient la première version, effective depuis sa date de référence d'origine.
+                if (this.parametres.goutteAGoutteHistorique.length === 0 && gagSanitized.actif) {
+                    this.parametres.goutteAGoutteHistorique.push({ depuis: gagSanitized.dateReference, ...gagSanitized });
+                }
+                nettoyerZonesGoutteAGoutte();
                 syncCultureRecordsFromSelection();
                 this.etat = this.load(this.KEYS.ETAT, { deficitsAccumules: {}, dernierCalcul: null });
             },
@@ -555,18 +867,22 @@
                         return;
                     }
 
-                    const config = CONFIG_JARDIN.famillesPlantes[plante] || { besoinEauStandardMm: 3 };
-                    const facteurSol = getSoilFactor(DataManager.parametres?.typeSol || 'limoneux');
-                    let besoin = config.besoinEauStandardMm * facteurSol;
+                    let besoin = getPlantWaterNeed(plante) * getSoilFactor(DataManager.parametres?.typeSol || 'limoneux');
 
                     if (temp > 30) besoin *= 1.3;
                     else if (temp < 15) besoin *= 0.7;
 
                     const arrosagesDuJour = journal.arrosages.filter(evt => evt.date === dateStr && evt.plants.includes(plante));
-                    const apportManuel = arrosagesDuJour.reduce((total, evt) => total + (Number(evt.litres) || 0), 0);
+                    const apportManuel = arrosagesDuJour.reduce((total, evt) => {
+                        const nbZones = Array.isArray(evt.plants) && evt.plants.length > 0 ? evt.plants.length : 1;
+                        return total + ((Number(evt.litres) || 0) / nbZones);
+                    }, 0);
+                    const apportAutomatique = getApportGoutteAGoutte(dateStr, plante);
 
-                    let deficit = deficitPrecedent + besoin - pluie - apportManuel;
+                    let deficit = deficitPrecedent + besoin - pluie - apportManuel - apportAutomatique;
                     if (deficit < -5) deficit = -5;
+                    const reserveUtileMax = getReserveUtileMaxMm(DataManager.parametres?.typeSol || 'limoneux');
+                    if (deficit > reserveUtileMax) deficit = reserveUtileMax;
 
                     const deficitArrondi = Math.round(deficit * 10) / 10;
                     seriesParPlante[plante].push(deficitArrondi);
@@ -582,12 +898,14 @@
         const GardenLogic = {
             mettreAJourDeficits(db, weatherHistory) {
                 const aujourdhui = getLocalTodayString();
-                const seriesParPlante = calculerSeriesDeficits(weatherHistory, db.journal, db.parametres.plantesChoisies);
+                const plantesAvecDeficit = db.parametres.plantesChoisies.filter(plante => getPlantCategory(plante) !== 'pelouse');
+                const seriesParPlante = calculerSeriesDeficits(weatherHistory, db.journal, plantesAvecDeficit);
 
-                db.parametres.plantesChoisies.forEach(plante => {
+                plantesAvecDeficit.forEach(plante => {
                     const dernierDeficit = seriesParPlante[plante]?.at(-1) ?? 0;
                     db.etat.deficitsAccumules[plante] = dernierDeficit;
                 });
+                delete db.etat.deficitsAccumules.Pelouse;
 
                 db.etat.dernierCalcul = aujourdhui;
                 db.sauvegarderEtat();
@@ -621,16 +939,177 @@
                 activeButton.classList.remove('border-transparent', 'text-slate-500');
                 activeButton.setAttribute('aria-selected', 'true');
             }
+
+            if (tabId === 'tab-reglages') {
+                renderSettingsView();
+                fillCultureSelectOptions();
+                initialiserChampsGoutteAGoutte();
+            }
+        }
+
+        function renderDripCheckboxes() {
+            const container = document.getElementById('drip-checkboxes');
+            if (!container) return;
+
+            const waterablePlants = DataManager.parametres.plantesChoisies.filter(p => getPlantCategory(p) !== 'pelouse');
+            const versionActuelle = getVersionGoutteAGoutteActuelle() || DataManager.parametres.goutteAGoutte;
+            const zonesActives = versionActuelle?.zones || [];
+
+            if (waterablePlants.length === 0) {
+                container.innerHTML = '<div class="rounded-2xl border border-dashed border-slate-300 p-4 text-sm text-slate-500">Aucune zone disponible (la pelouse est exclue).</div>';
+                return;
+            }
+
+            container.innerHTML = waterablePlants.map(p => {
+                const safePlant = escapeHtml(p);
+                const safeIcon = escapeHtml(CONFIG_JARDIN.famillesPlantes[p]?.icone || '🌱');
+                const checked = zonesActives.includes(p) ? 'checked' : '';
+                return `
+                    <label class="flex items-center gap-3 p-2 hover:bg-slate-50 rounded-xl cursor-pointer transition-colors border border-transparent hover:border-slate-100">
+                        <input type="checkbox" name="drip-zones" value="${safePlant}" ${checked} class="w-4 h-4 text-cyan-600 accent-cyan-600 rounded">
+                        <span class="text-sm font-medium text-slate-700">${safeIcon} ${safePlant}</span>
+                    </label>
+                `;
+            }).join('');
+        }
+
+        function getProchainPassageGoutteAGoutte() {
+            const gag = getVersionGoutteAGoutteActuelle();
+            if (!gag || !gag.actif || !Array.isArray(gag.zones) || gag.zones.length === 0) return null;
+
+            const planteRef = gag.zones[0];
+            const aujourdhui = getLocalTodayString();
+            const baseTimestamp = dateToTimestamp(aujourdhui);
+            if (baseTimestamp === null) return null;
+
+            for (let i = 0; i <= 60; i++) {
+                const d = new Date(baseTimestamp + i * 86400000);
+                const dStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+                if (estJourGoutteAGoutte(dStr, planteRef)) return dStr;
+            }
+            return null;
+        }
+
+        function renderDripStatus() {
+            const status = document.getElementById('drip-status');
+            if (!status) return;
+
+            const gag = getVersionGoutteAGoutteActuelle();
+
+            if (!gag || !gag.actif) {
+                status.textContent = "Goutte-à-goutte inactif : aucun apport automatique n'est comptabilisé dans le calcul.";
+                return;
+            }
+            if (!Array.isArray(gag.zones) || gag.zones.length === 0) {
+                status.textContent = "⚠️ Activez au moins une zone ci-dessous pour que le goutte-à-goutte soit pris en compte.";
+                return;
+            }
+
+            const litresParZone = Math.round(((Number(gag.quantiteL) || 0) / gag.zones.length) * 10) / 10;
+            const prochain = getProchainPassageGoutteAGoutte();
+            status.textContent = prochain
+                ? `✅ Actif : tous les ${gag.frequenceJours} jour(s), soit ${litresParZone} L par zone (${gag.zones.length} zone(s) desservie(s)). Prochain passage prévu le ${prochain}.`
+                : `✅ Actif : tous les ${gag.frequenceJours} jour(s), soit ${litresParZone} L par zone (${gag.zones.length} zone(s) desservie(s)).`;
+        }
+
+        function initialiserChampsGoutteAGoutte() {
+            const gag = getVersionGoutteAGoutteActuelle() || DataManager.parametres?.goutteAGoutte;
+            if (!gag) return;
+
+            const activeInput = document.getElementById('drip-active');
+            const volumeInput = document.getElementById('drip-volume');
+            const dureeInput = document.getElementById('drip-duration');
+            const frequencyInput = document.getElementById('drip-frequency');
+            const dateInput = document.getElementById('drip-reference-date');
+
+            if (activeInput) activeInput.checked = Boolean(gag.actif);
+            if (volumeInput) volumeInput.value = gag.quantiteL;
+            if (dureeInput) dureeInput.value = gag.dureeMin;
+            if (frequencyInput) frequencyInput.value = gag.frequenceJours;
+            if (dateInput) dateInput.value = gag.dateReference || getLocalTodayString();
+
+            renderDripCheckboxes();
+            renderDripStatus();
+        }
+
+        function uiEnregistrerGoutteAGoutte() {
+            const actif = document.getElementById('drip-active')?.checked || false;
+            const zones = Array.from(document.querySelectorAll('input[name="drip-zones"]:checked')).map(i => i.value);
+            const quantiteL = Math.max(0, Number(document.getElementById('drip-volume')?.value) || 0);
+            const dureeMin = Math.max(0, Number(document.getElementById('drip-duration')?.value) || 0);
+            const frequenceJours = Math.max(1, Number(document.getElementById('drip-frequency')?.value) || 1);
+            const dateReference = document.getElementById('drip-reference-date')?.value || getLocalTodayString();
+
+            if (actif && zones.length === 0) {
+                showToast("Cochez au moins une zone desservie avant d'activer le goutte-à-goutte.", 'error');
+                return;
+            }
+            if (actif && quantiteL <= 0) {
+                showToast("Indiquez une quantité d'eau supérieure à 0 L par passage.", 'error');
+                return;
+            }
+
+            DataManager.parametres.goutteAGoutte = { actif, zones, quantiteL, dureeMin, frequenceJours, dateReference };
+
+            if (!Array.isArray(DataManager.parametres.goutteAGoutteHistorique)) {
+                DataManager.parametres.goutteAGoutteHistorique = [];
+            }
+            const historique = DataManager.parametres.goutteAGoutteHistorique;
+            const versionPrecedente = historique.length > 0 ? historique[historique.length - 1] : null;
+            const aujourdhui = getLocalTodayString();
+
+            // Première configuration jamais faite : applicable dès la date de référence choisie (comportement historique).
+            // Modification d'un programme déjà en place : applicable seulement à partir d'aujourd'hui,
+            // pour ne jamais réécrire silencieusement les passages déjà passés.
+            const depuis = historique.length === 0 ? dateReference : aujourdhui;
+
+            const identique = versionPrecedente
+                && versionPrecedente.actif === actif
+                && versionPrecedente.quantiteL === quantiteL
+                && versionPrecedente.dureeMin === dureeMin
+                && versionPrecedente.frequenceJours === frequenceJours
+                && versionPrecedente.dateReference === dateReference
+                && JSON.stringify([...versionPrecedente.zones].sort()) === JSON.stringify([...zones].sort());
+
+            if (!identique) {
+                const nouvelleVersion = { depuis, actif, zones, quantiteL, dureeMin, frequenceJours, dateReference };
+                if (versionPrecedente && versionPrecedente.depuis === depuis) {
+                    // Déjà modifié aujourd'hui : on remplace la version du jour plutôt que d'en empiler une deuxième.
+                    historique[historique.length - 1] = nouvelleVersion;
+                } else {
+                    historique.push(nouvelleVersion);
+                }
+            }
+
+            DataManager.save(DataManager.KEYS.PARAMETRES, DataManager.parametres);
+
+            GardenLogic.mettreAJourDeficits(DataManager, meteoActuelle);
+            renderDripStatus();
+            renderMetrics();
+            renderHistory();
+            renderRecommendations();
+            renderChart();
+
+            showToast(actif
+                ? `🚿 Programme enregistré : ${quantiteL} L tous les ${frequenceJours} jour(s) pour ${zones.length} zone(s), à partir du ${depuis}.`
+                : "🚿 Goutte-à-goutte désactivé à partir d'aujourd'hui : l'historique des passages précédents reste inchangé.", 'success');
         }
 
         function renderCheckboxes() {
             const container = document.getElementById('plants-checkboxes');
-            container.innerHTML = DataManager.parametres.plantesChoisies.map(p => {
+            const waterablePlants = DataManager.parametres.plantesChoisies.filter(p => getPlantCategory(p) !== 'pelouse');
+
+            if (waterablePlants.length === 0) {
+                container.innerHTML = '<div class="rounded-2xl border border-dashed border-slate-300 p-4 text-sm text-slate-500">Aucune zone à arroser (la pelouse est exclue).</div>';
+                return;
+            }
+
+            container.innerHTML = waterablePlants.map(p => {
                 const safePlant = escapeHtml(p);
                 const safeIcon = escapeHtml(CONFIG_JARDIN.famillesPlantes[p]?.icone || '🌱');
                 return `
                     <label class="flex items-center gap-3 p-2 hover:bg-slate-50 rounded-xl cursor-pointer transition-colors border border-transparent hover:border-slate-100">
-                        <input type="checkbox" name="plants-watering" value="${safePlant}" checked class="w-4 h-4 text-blue-600 accent-blue-600 rounded">
+                        <input type="checkbox" name="plants-watering" value="${safePlant}" checked onchange="uiActualiserSuggestionArrosage()" class="w-4 h-4 text-blue-600 accent-blue-600 rounded">
                         <span class="text-sm font-medium text-slate-700">${safeIcon} ${safePlant}</span>
                     </label>
                 `;
@@ -647,11 +1126,41 @@
             }
 
             container.innerHTML = plantesActives.map(p => {
-                const def = DataManager.etat.deficitsAccumules[p] || 0;
                 const config = CONFIG_JARDIN.famillesPlantes[p] || {};
                 const icone = config.icone || '🌱';
                 const safePlant = escapeHtml(p);
                 const safeIcon = escapeHtml(icone);
+
+                if (getPlantCategory(p) === 'pelouse') {
+                    const estimation = estimerHauteurPelouseActuelle();
+                    const seuilTonte = Number(DataManager.parametres.seuilTonteCm || document.getElementById('mow-threshold')?.value || 7);
+                    const hauteur = estimation.hauteur;
+
+                    const statusConfig = hauteur >= seuilTonte
+                        ? { textClass: 'text-red-600', bgClass: 'bg-red-50', borderClass: 'border-red-100', statusText: '🚨 À tondre !' }
+                        : hauteur >= seuilTonte - 1.5
+                            ? { textClass: 'text-amber-600', bgClass: 'bg-amber-50', borderClass: 'border-amber-100', statusText: '⚠️ Bientôt à tondre' }
+                            : { textClass: 'text-emerald-600', bgClass: 'bg-emerald-50', borderClass: 'border-emerald-100', statusText: '✅ Hauteur correcte' };
+
+                    const sousTexte = estimation.dateDerniereTonte
+                        ? `Dernière tonte : ${estimation.dateDerniereTonte}${estimation.estimationPartielle ? ' (historique météo limité)' : ''}`
+                        : 'Aucune tonte enregistrée pour le moment';
+
+                    return `
+                        <div class="p-4 rounded-xl border text-center ${statusConfig.borderClass} ${statusConfig.bgClass} flex flex-col justify-between">
+                            <div>
+                                <span class="text-xs font-bold text-slate-500 block uppercase tracking-wider">${safeIcon} ${safePlant}</span>
+                                <span class="text-2xl font-black block my-1 ${statusConfig.textClass}">${hauteur} cm</span>
+                            </div>
+                            <div>
+                                <span class="text-xs font-semibold px-2 py-0.5 rounded-full ${statusConfig.bgClass} ${statusConfig.textClass}">${statusConfig.statusText}</span>
+                                <p class="text-[10px] text-slate-400 mt-2 italic">${escapeHtml(sousTexte)}</p>
+                            </div>
+                        </div>
+                    `;
+                }
+
+                const def = DataManager.etat.deficitsAccumules[p] || 0;
 
                 const statusConfig = def > 4
                     ? { textClass: 'text-red-600', bgClass: 'bg-red-50', borderClass: 'border-red-100', statusText: '🚨 Arrosage urgent !' }
@@ -678,11 +1187,51 @@
             }).join('');
         }
 
+        function genererEvenementsGoutteAGoutte(joursMax = 60) {
+            const historique = DataManager.parametres?.goutteAGoutteHistorique;
+            if (!Array.isArray(historique) || historique.length === 0) return [];
+
+            const aujourdhui = getLocalTodayString();
+            const baseTimestamp = dateToTimestamp(aujourdhui);
+            if (baseTimestamp === null) return [];
+
+            const premiereDepuis = historique.reduce((min, v) => {
+                const t = dateToTimestamp(v.depuis);
+                return (t !== null && (min === null || t < min)) ? t : min;
+            }, null);
+
+            const evenements = [];
+
+            for (let i = 0; i <= joursMax; i++) {
+                const timestamp = baseTimestamp - i * 86400000;
+                if (premiereDepuis !== null && timestamp < premiereDepuis) break;
+
+                const d = new Date(timestamp);
+                const dStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+                const version = getVersionGoutteAGoutteALaDate(dStr);
+                if (!version || !version.actif || !Array.isArray(version.zones) || version.zones.length === 0) continue;
+
+                const planteRef = version.zones[0];
+                if (estJourGoutteAGoutte(dStr, planteRef)) {
+                    const litresParZone = Math.round(((Number(version.quantiteL) || 0) / version.zones.length) * 10) / 10;
+                    evenements.push({
+                        date: dStr,
+                        type: '🚿 Goutte-à-goutte',
+                        details: `${version.zones.join(', ')} • ${litresParZone} L/zone (auto)`,
+                        auto: true
+                    });
+                }
+            }
+            return evenements;
+        }
+
         function renderHistory() {
             const tbody = document.getElementById('table-history-body');
             const evenements = [
                 ...DataManager.journal.arrosages.map(a => ({ date: a.date, type: "💧 Arrosage", details: `${a.plants.join(', ')} • ${Number(a.litres) || 0} L` })),
-                ...DataManager.journal.tontes.map(t => ({ date: t.date, type: "✂️ Tonte", details: `Hauteur : ${t.hauteur} cm` }))
+                ...DataManager.journal.tontes.map(t => ({ date: t.date, type: "✂️ Tonte", details: `Hauteur : ${t.hauteur} cm` })),
+                ...genererEvenementsGoutteAGoutte()
             ].sort((a, b) => b.date.localeCompare(a.date));
 
             if (evenements.length === 0) {
@@ -691,12 +1240,22 @@
             }
 
             tbody.innerHTML = evenements.map(evt => `
-                <tr class="hover:bg-slate-50 transition-colors">
+                <tr class="hover:bg-slate-50 transition-colors ${evt.auto ? 'bg-cyan-50/40' : ''}">
                     <td class="py-3 px-4 font-medium text-slate-600">${evt.date}</td>
-                    <td class="py-3 px-4 font-semibold text-slate-900">${evt.type}</td>
+                    <td class="py-3 px-4 font-semibold ${evt.auto ? 'text-cyan-700' : 'text-slate-900'}">${evt.type}${evt.auto ? ' <span class="ml-1 rounded-full bg-cyan-100 text-cyan-700 text-[10px] font-bold px-2 py-0.5 align-middle">AUTO</span>' : ''}</td>
                     <td class="py-3 px-4 text-slate-500">${evt.details}</td>
                 </tr>
             `).join('');
+        }
+
+        function getMeteoPourAffichage(maxJoursPasses = 6) {
+            // meteoActuelle peut contenir jusqu'à 92 jours passés (pour rattraper une longue
+            // absence dans le calcul du déficit), mais on ne veut afficher qu'une fenêtre
+            // récente et lisible à l'écran, pas tout l'historique de reconstruction.
+            const aujourdhui = getLocalTodayString();
+            const passes = meteoActuelle.filter(m => m.date <= aujourdhui);
+            const futurs = meteoActuelle.filter(m => m.date > aujourdhui);
+            return [...passes.slice(-(maxJoursPasses + 1)), ...futurs];
         }
 
         function renderWeatherView(donneesMeteo) {
@@ -734,11 +1293,13 @@
             container.innerHTML = Object.keys(CONFIG_JARDIN.famillesPlantes).map(p => {
                 const checked = choisies.includes(p) ? 'checked' : '';
                 const icone = CONFIG_JARDIN.famillesPlantes[p].icone;
+                const familyLabel = getPlantFamilyLabel(p);
                 const safePlant = escapeHtml(p);
                 const safeIcon = escapeHtml(icone);
+                const familyBadge = familyLabel ? `<span class="ml-2 text-[11px] text-slate-500">(${escapeHtml(familyLabel)})</span>` : '';
                 return `
                     <label class="flex items-center justify-between p-3 bg-slate-50 hover:bg-slate-100 rounded-xl cursor-pointer border border-slate-200 transition-colors">
-                        <span class="text-sm font-medium text-slate-700">${safeIcon} ${safePlant}</span>
+                        <span class="text-sm font-medium text-slate-700">${safeIcon} ${safePlant}${familyBadge}</span>
                         <input type="checkbox" name="settings-plants" value="${safePlant}" ${checked} class="w-4 h-4 text-green-600 accent-green-600 rounded">
                     </label>
                 `;
@@ -747,13 +1308,20 @@
 
         function fillCultureSelectOptions() {
             const select = document.getElementById('new-culture-select');
+            const categoryFilter = document.getElementById('new-culture-category')?.value || '';
             if (!select) return;
 
-            select.innerHTML = '<option value="">Choisir une plante</option>' + Object.keys(CONFIG_JARDIN.famillesPlantes).map(p => {
-                const icone = escapeHtml(CONFIG_JARDIN.famillesPlantes[p].icone || '🌱');
-                const nom = escapeHtml(p);
-                return `<option value="${nom}">${icone} ${nom}</option>`;
-            }).join('');
+            const options = Object.keys(CONFIG_JARDIN.famillesPlantes)
+                .filter(p => !categoryFilter || getPlantCategory(p) === categoryFilter)
+                .map(p => {
+                    const icone = escapeHtml(CONFIG_JARDIN.famillesPlantes[p].icone || '🌱');
+                    const nom = escapeHtml(p);
+                    const familyLabel = getPlantFamilyLabel(p);
+                    const familyText = familyLabel ? ` <span class="font-normal text-slate-500">(${escapeHtml(familyLabel)})</span>` : '';
+                    return `<option value="${nom}">${icone} ${nom}${familyLabel ? ` (${escapeHtml(familyLabel)})` : ''}</option>`;
+                });
+
+            select.innerHTML = '<option value="">Choisir une plante</option>' + (options.length > 0 ? options.join('') : '<option value="" disabled>Aucune plante disponible</option>');
         }
 
         function renderGardenManagement() {
@@ -813,6 +1381,8 @@
             const predictions = [];
 
             plantesActives.forEach(plante => {
+                if (getPlantCategory(plante) === 'pelouse') return;
+
                 let deficit = DataManager.etat.deficitsAccumules[plante] || 0;
                 let datePrevue = null;
                 let deficitPrevu = deficit;
@@ -822,14 +1392,13 @@
                     deficitPrevu = deficit;
                 } else {
                     for (const meteo of previsions) {
-                        const config = CONFIG_JARDIN.famillesPlantes[plante] || { besoinEauStandardMm: 3 };
-                        const facteurSol = getSoilFactor(DataManager.parametres?.typeSol || 'limoneux');
-                        let besoin = config.besoinEauStandardMm * facteurSol;
+                        const besoin = getPlantWaterNeed(plante) * getSoilFactor(DataManager.parametres?.typeSol || 'limoneux');
 
-                        if (meteo.maxTemp > 30) besoin *= 1.3;
-                        else if (meteo.maxTemp < 15) besoin *= 0.7;
+                        let ajusteBesoin = besoin;
+                        if (meteo.maxTemp > 30) ajusteBesoin *= 1.3;
+                        else if (meteo.maxTemp < 15) ajusteBesoin *= 0.7;
 
-                        let prochainDeficit = deficit + besoin - meteo.rainMm;
+                        let prochainDeficit = deficit + ajusteBesoin - meteo.rainMm;
                         if (prochainDeficit < -5) prochainDeficit = -5;
 
                         if (prochainDeficit > 4) {
@@ -861,25 +1430,27 @@
             };
         }
 
-        function predireProchaineTonte() {
+        function estimerHauteurPelouseActuelle() {
             const derniereTonte = DataManager.journal.tontes.length > 0
                 ? [...DataManager.journal.tontes].sort((a, b) => b.date.localeCompare(a.date))[0]
                 : null;
 
-            if (!derniereTonte) return null;
-
-            const seuilTonte = Number(DataManager.parametres.seuilTonteCm || document.getElementById('mow-threshold')?.value || 7);
             const hauteurCible = Number(DataManager.parametres.hauteurCibleTonteCm || document.getElementById('mow-height')?.value || 5);
-            const deficitPelouse = DataManager.etat.deficitsAccumules.Pelouse || 0;
+
+            if (!derniereTonte) {
+                return { hauteur: hauteurCible, dateDerniereTonte: null, estimationPartielle: false };
+            }
+
             const aujourdhui = getLocalTodayString();
-            const previsions = meteoActuelle.filter(m => m.date >= aujourdhui);
+            const joursDisponibles = meteoActuelle
+                .filter(m => m.date <= aujourdhui)
+                .sort((a, b) => a.date.localeCompare(b.date));
 
-            if (previsions.length === 0) return null;
+            let hauteur = Number(derniereTonte.hauteur) || hauteurCible;
 
-            let hauteurCourante = Number(derniereTonte.hauteur) || hauteurCible;
-            let datePrevue = null;
+            joursDisponibles.forEach(meteo => {
+                if (meteo.date <= derniereTonte.date) return;
 
-            for (const meteo of previsions) {
                 const facteurTemp = meteo.maxTemp < 10
                     ? 0.05
                     : meteo.maxTemp < 15
@@ -890,20 +1461,54 @@
                                 ? 0.6
                                 : 0.2;
 
-                const facteurEau = deficitPelouse <= 0
-                    ? 1
-                    : deficitPelouse <= 2
-                        ? 0.8
-                        : deficitPelouse <= 4
-                            ? 0.4
-                            : 0;
+                hauteur += 0.4 * facteurTemp;
+            });
 
-                const gain = 0.4 * facteurTemp * facteurEau;
-                hauteurCourante += gain;
+            const estimationPartielle = joursDisponibles.length > 0 && joursDisponibles[0].date > derniereTonte.date;
 
-                if (hauteurCourante >= seuilTonte) {
-                    datePrevue = meteo.date;
-                    break;
+            return {
+                hauteur: Math.round(hauteur * 10) / 10,
+                dateDerniereTonte: derniereTonte.date,
+                estimationPartielle
+            };
+        }
+
+        function predireProchaineTonte() {
+            const derniereTonte = DataManager.journal.tontes.length > 0
+                ? [...DataManager.journal.tontes].sort((a, b) => b.date.localeCompare(a.date))[0]
+                : null;
+
+            if (!derniereTonte) return null;
+
+            const seuilTonte = Number(DataManager.parametres.seuilTonteCm || document.getElementById('mow-threshold')?.value || 7);
+            const hauteurCible = Number(DataManager.parametres.hauteurCibleTonteCm || document.getElementById('mow-height')?.value || 5);
+            const aujourdhui = getLocalTodayString();
+            const previsions = meteoActuelle.filter(m => m.date > aujourdhui);
+
+            const estimationActuelle = estimerHauteurPelouseActuelle();
+            let hauteurCourante = estimationActuelle.hauteur;
+            let datePrevue = null;
+
+            if (hauteurCourante >= seuilTonte) {
+                datePrevue = aujourdhui;
+            } else if (previsions.length > 0) {
+                for (const meteo of previsions) {
+                    const facteurTemp = meteo.maxTemp < 10
+                        ? 0.05
+                        : meteo.maxTemp < 15
+                            ? 0.5
+                            : meteo.maxTemp < 25
+                                ? 1
+                                : meteo.maxTemp < 30
+                                    ? 0.6
+                                    : 0.2;
+
+                    hauteurCourante += 0.4 * facteurTemp;
+
+                    if (hauteurCourante >= seuilTonte) {
+                        datePrevue = meteo.date;
+                        break;
+                    }
                 }
             }
 
@@ -911,73 +1516,118 @@
 
             return {
                 date: datePrevue,
-                hauteurActuelle: Math.round(Math.max(hauteurCible, Number(derniereTonte.hauteur) || hauteurCible) * 10) / 10,
+                hauteurActuelle: estimationActuelle.hauteur,
                 seuilTonte: Math.round(seuilTonte * 10) / 10,
                 hauteurCible: Math.round(hauteurCible * 10) / 10,
                 hauteurEstimee: Math.round(hauteurCourante * 10) / 10
             };
         }
 
+        function buildCategoryDashboardData() {
+            const categories = Object.keys(CATEGORY_INFOS);
+            const plantesActives = getCulturesActives();
+            const predictions = predireProchainArrosage();
+            const prochaineTonte = predireProchaineTonte();
+            const estimationPelouse = estimerHauteurPelouseActuelle();
+
+            return categories.map(category => {
+                const plants = plantesActives.filter(c => getPlantCategory(c.nom) === category).map(c => c.nom);
+                const catPredictions = predictions ? predictions.predictions.filter(p => plants.includes(p.plante)) : [];
+
+                if (category === 'pelouse') {
+                    return {
+                        category,
+                        plants,
+                        predictions: catPredictions,
+                        totalDeficit: null,
+                        hauteurPelouse: estimationPelouse.hauteur,
+                        nextAction: prochaineTonte
+                    };
+                }
+
+                const totalDeficit = plants.reduce((acc, nom) => acc + (DataManager.etat.deficitsAccumules[nom] || 0), 0);
+                return {
+                    category,
+                    plants,
+                    predictions: catPredictions,
+                    totalDeficit: Math.round(totalDeficit * 10) / 10,
+                    hauteurPelouse: null,
+                    nextAction: null
+                };
+            });
+        }
+
         function renderDashboardSummary() {
             const container = document.getElementById('dashboard-summary');
-            const plantesActives = getCulturesActives();
-            const prochainePrevision = predireProchainArrosage();
-            const prochaineTonte = predireProchaineTonte();
             const localisation = getActiveGardenLocation();
             const typeSol = (DataManager.parametres?.typeSol || 'limoneux').toString();
             const typeSolLabel = typeSol.charAt(0).toUpperCase() + typeSol.slice(1);
+            const categoria = buildCategoryDashboardData();
+            const seuilTonte = Number(DataManager.parametres.seuilTonteCm || document.getElementById('mow-threshold')?.value || 7);
 
-            const activeNames = plantesActives.map(c => c.nom);
-            const focusPlantes = activeNames.length > 0 ? activeNames.join(', ') : 'Aucune plante active';
+            container.innerHTML = categoria.map(section => {
+                const info = CATEGORY_INFOS[section.category];
+                const plantsText = section.plants.length > 0 ? section.plants.map(p => `${CONFIG_JARDIN.famillesPlantes[p]?.icone || '🌿'} ${p}`).join(', ') : 'Aucune plante active';
+                const isPelouse = section.category === 'pelouse';
+                const predictionsText = section.predictions.length > 0
+                    ? section.predictions.map(p => `${p.plante} → ${p.date} (${p.volumeLParM2} L/m²)`).join(' • ')
+                    : 'Aucune irrigation planifiée pour cette catégorie';
+                const detail = section.plants.length > 0
+                    ? section.category === 'ornemental'
+                        ? `Fleurs et ornementales : ${plantsText}`
+                        : plantsText
+                    : 'Aucune plante active pour le moment';
+                const actionLine = isPelouse && section.nextAction
+                    ? `Tonte prévue le ${section.nextAction.date} • cible ${section.nextAction.hauteurCible} cm`
+                    : '';
 
-            const cards = [
-                {
-                    icon: '🌿',
-                    title: 'Jardin actif',
-                    badge: 'Suivi',
-                    value: `${plantesActives.length}`,
-                    detail: plantesActives.length > 0
-                        ? `Cultures actuellement suivies : ${focusPlantes} • ${localisation.nom} • Sol ${typeSolLabel}`
-                        : `Aucune culture active pour le moment • ${localisation.nom} • Sol ${typeSolLabel}`,
-                    tone: 'bg-emerald-50 text-emerald-900 border-emerald-200'
-                },
-                {
-                    icon: '💧',
-                    title: 'Arrosage à prévoir',
-                    badge: prochainePrevision ? 'Action' : 'À venir',
-                    value: prochainePrevision ? prochainePrevision.date : '—',
-                    detail: prochainePrevision
-                        ? `${prochainePrevision.predictions.length} plante(s) concernée(s) • ${prochainePrevision.predictions.map(p => `${p.plante} ${p.volumeLParM2} L/m²`).join(' • ')}`
-                        : 'Aucune intervention d’eau prévue dans la fenêtre météo',
-                    tone: 'bg-sky-50 text-sky-900 border-sky-200'
-                },
-                {
-                    icon: '✂️',
-                    title: 'Tonte à prévoir',
-                    badge: prochaineTonte ? 'Cible' : 'À venir',
-                    value: prochaineTonte ? prochaineTonte.date : '—',
-                    detail: prochaineTonte
-                        ? `Seuil ${prochaineTonte.seuilTonte} cm • Cible ${prochaineTonte.hauteurCible} cm • Hauteur estimée ${prochaineTonte.hauteurEstimee} cm`
-                        : 'Aucune intervention de tonte prévue pour le moment',
-                    tone: 'bg-lime-50 text-lime-900 border-lime-200'
-                }
-            ];
+                const metricValue = isPelouse ? `${section.hauteurPelouse} cm` : `${section.totalDeficit} mm`;
+                const metricClass = isPelouse
+                    ? (section.hauteurPelouse >= seuilTonte ? 'text-red-600' : section.hauteurPelouse >= seuilTonte - 1.5 ? 'text-amber-600' : 'text-emerald-600')
+                    : (section.totalDeficit > 4 ? 'text-red-600' : section.totalDeficit > 0 ? 'text-amber-600' : 'text-emerald-600');
 
-            container.innerHTML = cards.map(card => `
-                <div class="rounded-3xl border p-4 shadow-sm ${card.tone}">
-                    <div class="flex items-center justify-between gap-3">
-                        <p class="text-[11px] uppercase tracking-wide font-semibold opacity-80">${card.icon} ${card.title}</p>
-                        <span class="rounded-full bg-white/70 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide">${card.badge}</span>
+                return `
+                    <div class="rounded-3xl border p-4 shadow-sm ${info.cardClass}">
+                        <div class="flex items-center justify-between gap-3">
+                            <div>
+                                <p class="text-[11px] uppercase tracking-wide font-semibold ${info.titleClass}">${info.icon} ${info.label}</p>
+                                <p class="text-xs text-slate-500 mt-1">${escapeHtml(localisation.nom)} • Sol ${escapeHtml(typeSolLabel)}</p>
+                            </div>
+                            <span class="rounded-full ${info.badgeClass} px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide">${section.plants.length} actives</span>
+                        </div>
+                        <div class="text-2xl font-extrabold mt-4 ${metricClass}">${metricValue}</div>
+                        <p class="text-sm mt-2 leading-5 text-slate-700">${escapeHtml(detail)}</p>
+                        ${isPelouse ? '' : `<p class="text-sm mt-3 text-slate-500">${escapeHtml(predictionsText)}</p>`}
+                        ${actionLine ? `<p class="text-xs mt-3 font-semibold text-slate-700">${escapeHtml(actionLine)}</p>` : ''}
                     </div>
-                    <div class="text-2xl font-extrabold mt-3 leading-none">${card.value}</div>
-                    <p class="text-sm mt-2 leading-5 opacity-90">${escapeHtml(card.detail)}</p>
-                </div>
-            `).join('');
+                `;
+            }).join('');
         }
 
         // ==========================================
         // 6. SYSTÈME DE CONSEILS
         // ==========================================
+        function detecterRisqueGel() {
+            const aujourdhui = getLocalTodayString();
+            const joursGel = meteoActuelle
+                .filter(m => m.date >= aujourdhui && typeof m.minTemp === 'number' && m.minTemp <= 2)
+                .sort((a, b) => a.date.localeCompare(b.date));
+
+            if (joursGel.length === 0) return null;
+
+            const plantesSensibles = getCulturesActives()
+                .map(c => c.nom)
+                .filter(nom => getPlantCategory(nom) !== 'pelouse');
+
+            if (plantesSensibles.length === 0) return null;
+
+            return {
+                date: joursGel[0].date,
+                minTemp: joursGel[0].minTemp,
+                plantes: plantesSensibles
+            };
+        }
+
         function renderRecommendations() {
             const container = document.getElementById('recommendations-container');
             const box = document.getElementById('recommendations-box');
@@ -988,6 +1638,20 @@
             let conseilsHTML = [];
             const prochainePrevision = predireProchainArrosage();
             const prochaineTonte = predireProchaineTonte();
+
+            const risqueGel = detecterRisqueGel();
+            if (risqueGel) {
+                const libelleDate = risqueGel.date === aujourdhuiStr ? "cette nuit" : `dans la nuit du ${risqueGel.date}`;
+                conseilsHTML.push(`
+                    <div class="flex items-start gap-3 p-3 bg-indigo-50 text-indigo-900 rounded-xl border border-indigo-200 text-sm">
+                        <span>❄️</span>
+                        <div>
+                            <strong>Risque de gel ${libelleDate} :</strong> température minimale prévue de ${risqueGel.minTemp}°C.
+                            <div class="mt-1">Pensez à protéger : ${escapeHtml(risqueGel.plantes.join(', '))}.</div>
+                        </div>
+                    </div>
+                `);
+            }
 
             if (prochainePrevision) {
                 const details = prochainePrevision.predictions
@@ -1001,6 +1665,21 @@
                         <div>
                             <strong>Prédiction du jardin :</strong> le prochain arrosage est prévu le <span class="font-bold">${prochainePrevision.date}</span>.
                             <div class="mt-1">${details}</div>
+                        </div>
+                    </div>
+                `);
+            }
+
+            const gagStatut = getVersionGoutteAGoutteActuelle();
+            if (gagStatut && gagStatut.actif && Array.isArray(gagStatut.zones) && gagStatut.zones.length > 0) {
+                const prochainPassage = getProchainPassageGoutteAGoutte();
+                const litresParZoneStatut = Math.round(((Number(gagStatut.quantiteL) || 0) / gagStatut.zones.length) * 10) / 10;
+                conseilsHTML.push(`
+                    <div class="flex items-start gap-3 p-3 bg-cyan-50 text-cyan-900 rounded-xl border border-cyan-200 text-sm">
+                        <span>🚿</span>
+                        <div>
+                            <strong>Goutte-à-goutte actif :</strong> tous les ${gagStatut.frequenceJours} jour(s), ${litresParZoneStatut} L/zone pour ${escapeHtml(gagStatut.zones.join(', '))}.
+                            ${prochainPassage ? `<div class="mt-1">Prochain passage prévu le <span class="font-bold">${prochainPassage}</span>.</div>` : ''}
                         </div>
                     </div>
                 `);
@@ -1029,6 +1708,7 @@
 
             let plantesEnSouffrance = [];
             DataManager.parametres.plantesChoisies.forEach(p => {
+                if (getPlantCategory(p) === 'pelouse') return;
                 if ((DataManager.etat.deficitsAccumules[p] || 0) > 4) plantesEnSouffrance.push(p);
             });
 
@@ -1076,15 +1756,35 @@
         // ==========================================
         // 7. GRAPHIQUE INTERACTIF (Chart.js)
         // ==========================================
+        function estUnPassageGoutteAGoutte(dateStr) {
+            const version = getVersionGoutteAGoutteALaDate(dateStr);
+            if (!version || !version.actif || !Array.isArray(version.zones)) return false;
+            return version.zones.some(zone => estJourGoutteAGoutte(dateStr, zone));
+        }
+
         function renderChart() {
             const ctx = document.getElementById('deficitsChart').getContext('2d');
             if (monGraphiqueInstance) monGraphiqueInstance.destroy();
 
-            const labelsDates = meteoActuelle.map(m => m.date);
-            const plantesActives = getCulturesActives().map(culture => culture.nom);
+            const plantesActives = getCulturesActives().map(culture => culture.nom).filter(plante => getPlantCategory(plante) !== 'pelouse');
             const seriesParPlante = calculerSeriesDeficits(meteoActuelle, DataManager.journal, plantesActives);
+
+            // Le calcul ci-dessus porte sur tout l'historique reconstruit (jusqu'à 92 jours après
+            // une longue absence) pour rester exact, mais on n'affiche qu'une fenêtre récente et
+            // lisible sur le graphique.
+            const aujourdhui = getLocalTodayString();
+            const indicesPasses = [];
+            const indicesFuturs = [];
+            meteoActuelle.forEach((m, i) => {
+                if (m.date <= aujourdhui) indicesPasses.push(i);
+                else indicesFuturs.push(i);
+            });
+            const indicesAffiches = [...indicesPasses.slice(-7), ...indicesFuturs];
+
+            const labelsDates = indicesAffiches.map(i => meteoActuelle[i].date);
             const datasetsPlantes = plantesActives.map(plante => {
-                const pointsDeficit = seriesParPlante[plante] || [];
+                const serieComplete = seriesParPlante[plante] || [];
+                const pointsDeficit = indicesAffiches.map(i => serieComplete[i] ?? null);
 
                 let col = '#16a34a';
                 const name = plante.toLowerCase();
@@ -1116,6 +1816,22 @@
                 return;
             }
 
+            const marqueurYGoutteAGoutte = -5.7;
+            const pointsGoutteAGoutte = labelsDates.map(date => estUnPassageGoutteAGoutte(date) ? marqueurYGoutteAGoutte : null);
+            const aUnPassageAffiche = pointsGoutteAGoutte.some(v => v !== null);
+
+            if (aUnPassageAffiche) {
+                datasetsPlantes.push({
+                    label: '🚿 Passage goutte-à-goutte',
+                    data: pointsGoutteAGoutte,
+                    showLine: false,
+                    pointStyle: 'triangle',
+                    pointRadius: 7,
+                    pointBackgroundColor: '#0891b2',
+                    pointBorderColor: '#0891b2'
+                });
+            }
+
             monGraphiqueInstance = new Chart(ctx, {
                 type: 'line',
                 data: { labels: labelsDates, datasets: datasetsPlantes },
@@ -1123,7 +1839,11 @@
                     responsive: true,
                     maintainAspectRatio: false,
                     scales: {
-                        y: { title: { display: true, text: 'Déficit (mm)' }, grid: { color: '#f1f5f9' } },
+                        y: {
+                            title: { display: true, text: 'Déficit (mm)' },
+                            grid: { color: '#f1f5f9' },
+                            min: aUnPassageAffiche ? -6.5 : undefined
+                        },
                         x: { grid: { display: false } }
                     }
                 }
@@ -1156,7 +1876,7 @@
                     const writable = await handle.createWritable();
                     await writable.write(jsonStr);
                     await writable.close();
-                    alert("✅ Sauvegarde enregistrée avec succès dans le dossier choisi !");
+                    showToast("✅ Sauvegarde enregistrée avec succès dans le dossier choisi !", 'success');
                     return;
                 } catch (err) {
                     // Si l'utilisateur annule simplement la boîte de dialogue, on stoppe
@@ -1175,7 +1895,7 @@
             declencheur.click();
             
             URL.revokeObjectURL(url);
-            alert("📤 Fichier généré ! Choisissez votre espace Cloud (Google Drive / iCloud / Fichiers) comme destination d'enregistrement.");
+            showToast("📤 Fichier généré ! Choisissez votre espace Cloud (Google Drive / iCloud / Fichiers) comme destination d'enregistrement.", 'info');
         }
 
         function uiReinitialiserHydrique() {
@@ -1189,7 +1909,7 @@
             renderMetrics();
             renderRecommendations();
             renderChart();
-            alert('💧 État hydrique réinitialisé avec succès.');
+            showToast('💧 État hydrique réinitialisé avec succès.', 'success');
         }
 
         function uiReinitialiserJournal() {
@@ -1205,7 +1925,7 @@
             renderRecommendations();
             renderChart();
             renderMetrics();
-            alert('🗑️ Journal réinitialisé avec succès.');
+            showToast('🗑️ Journal réinitialisé avec succès.', 'success');
         }
 
         function uiReinitialiserDonnees() {
@@ -1214,7 +1934,7 @@
 
             const defaults = {
                 journal: { arrosages: [], tontes: [] },
-                parametres: { plantesChoisies: ['Pelouse', 'Tomate', 'Courgette', 'Basilic'] },
+                parametres: getSettingsDefaults(),
                 etat: { deficitsAccumules: {}, dernierCalcul: null }
             };
 
@@ -1225,7 +1945,7 @@
             DataManager.initDatabase();
             demarrerApplication();
             switchTab('tab-suivi');
-            alert('🧹 Données réinitialisées avec succès.');
+            showToast('🧹 Données réinitialisées avec succès.', 'success');
         }
 
         function uiImporterDonnees() {
@@ -1247,14 +1967,14 @@
                             DataManager.save(DataManager.KEYS.PARAMETRES, donnéesImportées.parametres);
                             DataManager.save(DataManager.KEYS.ETAT, donnéesImportées.etat);
                             
-                            alert("✅ Synchronisation réussie ! Les données ont été chargées.");
+                            showToast("✅ Synchronisation réussie ! Les données ont été chargées.", 'success');
                             demarrerApplication();
                             switchTab('tab-suivi');
                         } else {
-                            alert("❌ Le fichier sélectionné n'est pas une sauvegarde valide de l'application.");
+                            showToast("❌ Le fichier sélectionné n'est pas une sauvegarde valide de l'application.", 'error');
                         }
                     } catch (erreur) {
-                        alert("❌ Erreur de lecture : Fichier corrompu ou illisible.");
+                        showToast("❌ Erreur de lecture : Fichier corrompu ou illisible.", 'error');
                     }
                 };
                 lecteur.readAsText(fichier);
@@ -1274,17 +1994,17 @@
                 meteoActuelle = await WeatherUtils.fetchWeather();
                 document.getElementById('global-status').className = "bg-emerald-50 text-emerald-800 border border-emerald-200 rounded-full px-4 py-1.5 text-xs font-semibold shadow-sm";
                 document.getElementById('global-status').innerText = `☀️ Connecté • ${localisation.nom}`;
-                renderWeatherView(meteoActuelle);
+                renderWeatherView(getMeteoPourAffichage());
                 GardenLogic.mettreAJourDeficits(DataManager, meteoActuelle);
                 renderDashboardSummary();
                 renderMetrics();
                 renderRecommendations();
                 renderChart();
-                alert("🌤️ Prévisions météo mises à jour.");
+                showToast("🌤️ Prévisions météo mises à jour.", 'success');
             } catch (e) {
                 document.getElementById('global-status').className = "bg-amber-50 text-amber-800 border border-amber-200 rounded-full px-4 py-1.5 text-xs font-semibold shadow-sm";
                 document.getElementById('global-status').innerText = `⚠️ Mode hors-ligne`;
-                alert("⚠️ Impossible de récupérer les prévisions météo pour cette localisation.");
+                showToast("⚠️ Impossible de récupérer les prévisions météo pour cette localisation.", 'error');
             }
         }
 
@@ -1294,22 +2014,44 @@
             const litresRaw = document.getElementById('watering-volume')?.value;
             const litres = Math.max(0, Number(litresRaw || getStandardWateringVolume()));
 
-            if (checked.length === 0) return alert("Choisissez au moins une zone !");
-            if (!Number.isFinite(litres) || litres <= 0) return alert("Saisissez une quantité d'eau supérieure à 0 L.");
+            if (checked.length === 0) { showToast("Choisissez au moins une zone !", 'error'); return; }
+            if (!Number.isFinite(litres) || litres <= 0) { showToast("Saisissez une quantité d'eau supérieure à 0 L.", 'error'); return; }
 
-            DataManager.journal.arrosages.push({
-                date: dateArrosage,
-                plants: checked,
-                litres
-            });
+            const matchingIndexes = DataManager.journal.arrosages
+                .map((evt, index) => ({ evt, index }))
+                .filter(({ evt }) => evt.date === dateArrosage && samePlantSelection(evt.plants, checked))
+                .map(({ index }) => index);
+
+            let totalLitres = litres;
+            let action = 'enregistré';
+
+            if (matchingIndexes.length > 0) {
+                const firstMatch = matchingIndexes[0];
+                totalLitres = (Number(DataManager.journal.arrosages[firstMatch].litres) || 0) + litres;
+                DataManager.journal.arrosages[firstMatch].litres = totalLitres;
+                DataManager.journal.arrosages = DataManager.journal.arrosages.filter((evt, index) => {
+                    return index === firstMatch || !matchingIndexes.includes(index);
+                });
+                action = 'cumulé';
+            } else {
+                DataManager.journal.arrosages.push({
+                    date: dateArrosage,
+                    plants: checked,
+                    litres
+                });
+            }
+
             DataManager.sauvegarderJournal();
-            
             GardenLogic.mettreAJourDeficits(DataManager, meteoActuelle);
+            renderDashboardSummary();
             renderMetrics();
             renderHistory();
             renderRecommendations();
             renderChart();
-            alert(`💧 Arrosage de ${litres} L enregistré pour le ${dateArrosage} !`);
+            uiActualiserSuggestionArrosage();
+            showToast(action === 'cumulé'
+                ? `💧 Arrosage cumulé : +${litres} L ajoutés, total de ${totalLitres} L pour le ${dateArrosage} !`
+                : `💧 Arrosage enregistré de ${litres} L pour le ${dateArrosage} !`, 'success');
         }
 
         function uiEnregistrerTonte() {
@@ -1325,9 +2067,10 @@
             });
             DataManager.sauvegarderJournal();
             renderHistory();
+            renderMetrics();
             renderRecommendations();
             renderChart();
-            alert(`✂️ Tonte à ${h} cm enregistrée !`);
+            showToast(`✂️ Tonte à ${h} cm enregistrée !`, 'success');
         }
 
         function uiSaferDateValue(value) {
@@ -1339,7 +2082,7 @@
             const plantationInput = document.getElementById('new-culture-plantation');
             const arrachageInput = document.getElementById('new-culture-arrachage');
 
-            if (!select || !select.value) return alert('Choisissez une plante à ajouter.');
+            if (!select || !select.value) { showToast('Choisissez une plante à ajouter.', 'error'); return; }
 
             const nom = select.value;
             const prochainePlantation = plantationInput.value || getLocalTodayString();
@@ -1367,26 +2110,44 @@
             renderSettingsView();
             renderGardenManagement();
             renderCheckboxes();
+            renderDripCheckboxes();
             renderMetrics();
             renderRecommendations();
             renderChart();
-            alert(`➕ Plante ${nom} ajoutée au jardin.`);
+            showToast(`➕ Plante ${nom} ajoutée au jardin.`, 'success');
+        }
+
+        function nettoyerZonesGoutteAGoutte() {
+            const gag = DataManager.parametres?.goutteAGoutte;
+            if (gag && Array.isArray(gag.zones)) {
+                gag.zones = gag.zones.filter(zone => DataManager.parametres.plantesChoisies.includes(zone));
+            }
+            const historique = DataManager.parametres?.goutteAGoutteHistorique;
+            if (Array.isArray(historique)) {
+                historique.forEach(version => {
+                    if (Array.isArray(version.zones)) {
+                        version.zones = version.zones.filter(zone => DataManager.parametres.plantesChoisies.includes(zone));
+                    }
+                });
+            }
         }
 
         function uiSupprimerCulture(nom) {
             const cultures = getCultureRecords().filter(culture => culture.nom !== nom);
             DataManager.parametres.cultures = cultures;
             DataManager.parametres.plantesChoisies = normalizePlantSelection(DataManager.parametres.plantesChoisies.filter(plante => plante !== nom));
+            nettoyerZonesGoutteAGoutte();
             DataManager.save(DataManager.KEYS.PARAMETRES, DataManager.parametres);
 
             GardenLogic.mettreAJourDeficits(DataManager, meteoActuelle);
             renderSettingsView();
             renderGardenManagement();
             renderCheckboxes();
+            renderDripCheckboxes();
             renderMetrics();
             renderRecommendations();
             renderChart();
-            alert(`🗑️ ${nom} retirée du jardin.`);
+            showToast(`🗑️ ${nom} retirée du jardin.`, 'success');
         }
 
         function uiMettreAJourCultureDate(nom, field, value) {
@@ -1407,7 +2168,7 @@
 
         function uiSauvegarderReglages() {
             const checked = Array.from(document.querySelectorAll('input[name="settings-plants"]:checked')).map(i => i.value);
-            if (checked.length === 0) return alert("Veuillez sélectionner au moins une culture !");
+            if (checked.length === 0) { showToast("Veuillez sélectionner au moins une culture !", 'error'); return; }
 
             const nomLocalisation = document.getElementById('garden-location-name').value.trim() || CONFIG_JARDIN.location.nom;
             const latitude = Number(document.getElementById('garden-latitude').value);
@@ -1421,22 +2182,20 @@
             };
             DataManager.parametres.typeSol = typeSol;
             DataManager.parametres.plantesChoisies = normalizePlantSelection(checked);
+            nettoyerZonesGoutteAGoutte();
             syncCultureRecordsFromSelection();
             DataManager.save(DataManager.KEYS.PARAMETRES, DataManager.parametres);
 
             const wateringVolumeInput = document.getElementById('watering-volume');
             const wateringHint = document.getElementById('watering-volume-hint');
             if (wateringVolumeInput) {
-                const standardVolume = getStandardWateringVolume();
-                wateringVolumeInput.value = standardVolume;
-                if (wateringHint) {
-                    wateringHint.textContent = `Apport standard recommandé : ${standardVolume} L`;
-                }
+                uiActualiserSuggestionArrosage();
             }
             
             GardenLogic.mettreAJourDeficits(DataManager, meteoActuelle);
             
             renderCheckboxes();
+            renderDripCheckboxes();
             renderMetrics();
             renderHistory();
             renderRecommendations();
@@ -1444,7 +2203,7 @@
             renderGardenManagement();
             syncGardenSettingsInputs();
             
-            alert("⚙️ Réglages enregistrés ! Votre localisation et votre type de sol ont été mis à jour.");
+            showToast("⚙️ Réglages enregistrés ! Votre localisation et votre type de sol ont été mis à jour.", 'success');
             switchTab('tab-suivi');
         }
 
@@ -1458,18 +2217,16 @@
             }
 
             if (wateringVolumeInput) {
-                const standardVolume = getStandardWateringVolume();
-                wateringVolumeInput.value = standardVolume;
-                if (wateringHint) {
-                    wateringHint.textContent = `Apport standard recommandé : ${standardVolume} L`;
-                }
+                uiActualiserSuggestionArrosage();
             }
         }
 
         async function demarrerApplication() {
             DataManager.initDatabase();
+            const entreesArchivees = purgerHistoriqueAncien();
             syncGardenSettingsInputs();
             initialiserChampsArrosage();
+            initialiserChampsGoutteAGoutte();
             const localisation = getActiveGardenLocation();
             document.getElementById('global-status').innerText = `Connexion météo à ${localisation.nom}...`;
 
@@ -1486,14 +2243,19 @@
             GardenLogic.mettreAJourDeficits(DataManager, meteoActuelle);
             
             renderCheckboxes();
+            renderDripCheckboxes();
             renderMetrics();
             renderHistory();
-            renderWeatherView(meteoActuelle);
+            renderWeatherView(getMeteoPourAffichage());
             renderSettingsView();
             fillCultureSelectOptions();
             renderGardenManagement();
             renderRecommendations();
             renderChart();
+
+            if (entreesArchivees > 0) {
+                showToast(`🗂️ ${entreesArchivees} entrée(s) de plus d'un an ont été archivées du journal.`, 'info');
+            }
         }
 
         demarrerApplication();

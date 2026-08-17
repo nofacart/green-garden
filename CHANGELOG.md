@@ -5,9 +5,32 @@ Toutes les modifications notables de ce projet sont documentées ici.
 ## [Unreleased]
 
 ### À venir
-- Affinage du comportement de prédiction pour les cultures et la pelouse.
-- Ajustements de la logique agronomique selon les retours d’usage réel.
-- Amélioration visuelle des composants de décision sur l’onglet principal.
+- Raffinement de la logique agronomique selon les retours d’usage réel.
+- Ajustements éventuels sur les seuils et recommandations de tonte.
+- Améliorations visuelles et ergonomiques sur les écrans de décision.
+
+## [1.2.0] - 2026-08-17
+
+### Ajouts
+- Système de goutte à goutte automatique avec activation, zones desservies, fréquence et date de référence.
+- Gestion avancée des cultures avec ajout, suppression et suivi des périodes de plantation / arrachage.
+- Tableau de bord de synthèse plus riche sur l’onglet de suivi.
+- Journal d’interventions détaillé pour les arrosages, tonte et autres actions.
+- Export / import de sauvegarde JSON via le système de fichiers ou un dossier synchronisé dans le cloud.
+- Contrôle du statut hydrique du sol et suivi visuel du déficit accumulé.
+
+### Améliorations
+- Intégration complète des prévisions météo dans le parcours de décision du jour.
+- Recommandations de volume d’arrosage calculées à partir du déficit accumulé et du type de sol.
+- Mise à jour de l’UX des réglages avec configuration du jardin, des zones et des cultures.
+- Cohérence renforcée entre le résumé principal, le graphique hydrique et les conseils de gestion.
+- Ajout de reset ciblés pour l’hydrique, le journal et les données complètes.
+
+### Corrections
+- Correction de la logique d’affichage des cultures actives selon leurs périodes validées.
+- Validation plus robuste des entrées de date et de quantité d’arrosage.
+- Normalisation du stockage des paramètres de jardin et de l’état hydrique local.
+- Correction du comportement de sélection et de calcul sur les zones de culture / pelouse.
 
 ## [1.1.0] - 2026-07-20
 

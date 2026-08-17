@@ -9,6 +9,13 @@ Toutes les modifications notables de ce projet sont documentées ici.
 - Ajustements éventuels sur les seuils et recommandations de tonte.
 - Améliorations visuelles et ergonomiques sur les écrans de décision.
 
+## [1.2.1] - 2026-08-17
+
+### Corrections
+- Correction de la logique d’historique versionné du goutte-à-goutte pour conserver les passages passés et reprendre correctement le bon programme à partir de sa date de référence.
+- Stabilisation du calcul d’irrigation automatique quand plusieurs réglages sont enregistrés à des dates différentes.
+- Vérification du bon recalcul du déficit hydrique après une modification du programme d’arrosage automatique.
+
 ## [1.2.0] - 2026-08-17
 
 ### Ajouts

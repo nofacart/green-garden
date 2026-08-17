@@ -102,22 +102,11 @@
                     <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 flex flex-col justify-between">
                         <div>
                             <h2 class="text-lg font-bold text-slate-900 mb-2 flex items-center gap-2">✂️ Entretien pelouse</h2>
-                            <p class="text-slate-500 text-sm mb-6">Indiquez la hauteur de coupe de la tonte du jour.</p>
-                            <div class="space-y-4 mb-6">
-                                <label class="block text-sm font-medium text-slate-700">
-                                    Seuil d'intervention : <span id="threshold-val" class="font-bold text-orange-600">7</span> cm
-                                </label>
-                                <input type="range" id="mow-threshold" min="4" max="12" step="1" value="7"
-                                       oninput="document.getElementById('threshold-val').innerText = this.value"
-                                       class="w-full accent-orange-600 cursor-pointer">
-
-                                <label class="block text-sm font-medium text-slate-700">
-                                    Hauteur cible après tonte : <span id="height-val" class="font-bold text-green-600">5</span> cm
-                                </label>
-                                <input type="range" id="mow-height" min="2" max="10" step="1" value="5" 
-                                       oninput="document.getElementById('height-val').innerText = this.value"
-                                       class="w-full accent-green-600 cursor-pointer">
-                            </div>
+                            <p class="text-slate-500 text-sm mb-6">Indiquez la hauteur obtenue lors de la tonte du jour. Le seuil d'intervention et la hauteur cible se règlent dans l'onglet Réglages.</p>
+                            <label class="block text-sm font-medium text-slate-700">
+                                Hauteur de tonte (cm)
+                                <input id="mow-cut-height" type="number" min="0.5" step="0.5" class="mt-1 w-full border border-slate-300 rounded-xl px-3 py-2 text-sm">
+                            </label>
                         </div>
                         <button onclick="uiEnregistrerTonte()" class="w-full bg-green-600 hover:bg-green-700 text-white font-medium py-2.5 px-4 rounded-xl transition-colors shadow-sm mt-auto">
                             ✂️ J'ai tondu aujourd'hui
@@ -188,7 +177,7 @@
                     <h2 class="text-lg font-bold text-slate-900 mb-2">⚙️ Configuration de mon jardin</h2>
                     <p class="text-slate-500 text-sm mb-6">Choisissez votre localisation et le type de sol pour adapter la météo et les besoins en eau.</p>
 
-                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
                         <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                             <h3 class="text-sm font-semibold text-slate-800 mb-3">📍 Localisation du jardin</h3>
                             <div class="space-y-3">
@@ -221,6 +210,26 @@
                                 </select>
                             </label>
                             <p class="text-xs text-slate-500 mt-3">Le type de sol ajuste les besoins en eau estimés pour chaque culture.</p>
+                        </div>
+
+                        <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                            <h3 class="text-sm font-semibold text-slate-800 mb-3">✂️ Entretien pelouse</h3>
+                            <div class="space-y-4">
+                                <label class="block text-sm font-medium text-slate-700">
+                                    Seuil d'intervention : <span id="threshold-val" class="font-bold text-orange-600">7</span> cm
+                                </label>
+                                <input type="range" id="mow-threshold" min="4" max="12" step="1" value="7"
+                                       oninput="document.getElementById('threshold-val').innerText = this.value"
+                                       class="w-full accent-orange-600 cursor-pointer">
+
+                                <label class="block text-sm font-medium text-slate-700">
+                                    Hauteur cible après tonte : <span id="height-val" class="font-bold text-green-600">5</span> cm
+                                </label>
+                                <input type="range" id="mow-target-height" min="2" max="10" step="1" value="5"
+                                       oninput="document.getElementById('height-val').innerText = this.value"
+                                       class="w-full accent-green-600 cursor-pointer">
+                            </div>
+                            <p class="text-xs text-slate-500 mt-3">Détermine quand l'app vous suggère de tondre et vers quelle hauteur.</p>
                         </div>
                     </div>
                     
@@ -1284,6 +1293,26 @@
             document.getElementById('garden-latitude').value = localisation.latitude;
             document.getElementById('garden-longitude').value = localisation.longitude;
             document.getElementById('garden-soil-type').value = DataManager.parametres?.typeSol || 'limoneux';
+
+            const seuilTonte = Number(DataManager.parametres?.seuilTonteCm) || 7;
+            const hauteurCible = Number(DataManager.parametres?.hauteurCibleTonteCm) || 5;
+            const seuilInput = document.getElementById('mow-threshold');
+            const hauteurInput = document.getElementById('mow-target-height');
+            if (seuilInput) {
+                seuilInput.value = seuilTonte;
+                document.getElementById('threshold-val').innerText = seuilTonte;
+            }
+            if (hauteurInput) {
+                hauteurInput.value = hauteurCible;
+                document.getElementById('height-val').innerText = hauteurCible;
+            }
+
+            initialiserChampMowCutHeight();
+        }
+
+        function initialiserChampMowCutHeight() {
+            const input = document.getElementById('mow-cut-height');
+            if (input) input.value = Number(DataManager.parametres?.hauteurCibleTonteCm) || 5;
         }
 
         function renderSettingsView() {
@@ -1435,7 +1464,7 @@
                 ? [...DataManager.journal.tontes].sort((a, b) => b.date.localeCompare(a.date))[0]
                 : null;
 
-            const hauteurCible = Number(DataManager.parametres.hauteurCibleTonteCm || document.getElementById('mow-height')?.value || 5);
+            const hauteurCible = Number(DataManager.parametres.hauteurCibleTonteCm || document.getElementById('mow-target-height')?.value || 5);
 
             if (!derniereTonte) {
                 return { hauteur: hauteurCible, dateDerniereTonte: null, estimationPartielle: false };
@@ -1481,7 +1510,7 @@
             if (!derniereTonte) return null;
 
             const seuilTonte = Number(DataManager.parametres.seuilTonteCm || document.getElementById('mow-threshold')?.value || 7);
-            const hauteurCible = Number(DataManager.parametres.hauteurCibleTonteCm || document.getElementById('mow-height')?.value || 5);
+            const hauteurCible = Number(DataManager.parametres.hauteurCibleTonteCm || document.getElementById('mow-target-height')?.value || 5);
             const aujourdhui = getLocalTodayString();
             const previsions = meteoActuelle.filter(m => m.date > aujourdhui);
 
@@ -2055,22 +2084,25 @@
         }
 
         function uiEnregistrerTonte() {
-            const h = document.getElementById('mow-height').value;
-            const seuil = document.getElementById('mow-threshold').value;
-            DataManager.parametres.hauteurCibleTonteCm = parseFloat(h);
-            DataManager.parametres.seuilTonteCm = parseFloat(seuil);
-            DataManager.save(DataManager.KEYS.PARAMETRES, DataManager.parametres);
+            const h = document.getElementById('mow-cut-height').value;
+            const hauteur = parseFloat(h);
+
+            if (!Number.isFinite(hauteur) || hauteur <= 0) {
+                showToast("Indiquez une hauteur de tonte supérieure à 0 cm.", 'error');
+                return;
+            }
 
             DataManager.journal.tontes.push({
                 date: getLocalTodayString(),
-                hauteur: parseFloat(h)
+                hauteur
             });
             DataManager.sauvegarderJournal();
             renderHistory();
             renderMetrics();
             renderRecommendations();
             renderChart();
-            showToast(`✂️ Tonte à ${h} cm enregistrée !`, 'success');
+            initialiserChampMowCutHeight();
+            showToast(`✂️ Tonte à ${hauteur} cm enregistrée !`, 'success');
         }
 
         function uiSaferDateValue(value) {
@@ -2174,6 +2206,8 @@
             const latitude = Number(document.getElementById('garden-latitude').value);
             const longitude = Number(document.getElementById('garden-longitude').value);
             const typeSol = document.getElementById('garden-soil-type').value || 'limoneux';
+            const seuilTonte = Math.max(1, Number(document.getElementById('mow-threshold')?.value) || 7);
+            const hauteurCibleTonte = Math.max(0.5, Number(document.getElementById('mow-target-height')?.value) || 5);
 
             DataManager.parametres.localisation = {
                 nom: nomLocalisation,
@@ -2181,6 +2215,8 @@
                 longitude: Number.isFinite(longitude) ? longitude : CONFIG_JARDIN.location.longitude
             };
             DataManager.parametres.typeSol = typeSol;
+            DataManager.parametres.seuilTonteCm = seuilTonte;
+            DataManager.parametres.hauteurCibleTonteCm = hauteurCibleTonte;
             DataManager.parametres.plantesChoisies = normalizePlantSelection(checked);
             nettoyerZonesGoutteAGoutte();
             syncCultureRecordsFromSelection();

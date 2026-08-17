@@ -14,9 +14,10 @@ Cette version a été refondée pour fonctionner sans backend, avec un stockage 
 - Gestion détaillée des cultures avec dates de plantation et d’arrachage.
 - Paramétrage de la localisation du jardin et du type de sol.
 - Saisie d’arrosages manuels avec date et quantité en litres.
-- Système de goutte à goutte automatique programmable.
+- Système de goutte à goutte automatique programmable, avec historique des versions de programme.
 - Historique des interventions et journal d’actions.
 - Graphiques dynamiques du déficit hydrique avec Chart.js.
+- Reprise propre des réglages d’irrigation automatique selon la date de référence et l’historique des passages.
 - Sauvegarde locale dans le navigateur via LocalStorage.
 - Export / import de sauvegarde JSON vers le stockage cloud ou le système de fichiers.
 

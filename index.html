@@ -258,8 +258,9 @@
                     <div class="flex items-center justify-between gap-3 mb-2">
                         <h2 class="text-lg font-bold text-slate-900 flex items-center gap-2">🚿 Goutte à goutte automatique</h2>
                         <label class="inline-flex items-center gap-2 cursor-pointer">
-                            <input type="checkbox" id="drip-active" class="w-4 h-4 accent-cyan-600">
+                            <input type="checkbox" id="drip-active" onchange="uiApercuStatutGoutteAGoutte()" class="w-4 h-4 accent-cyan-600">
                             <span class="text-sm font-medium text-slate-700">Activé</span>
+                            <span id="drip-active-badge" class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-500">Inactif</span>
                         </label>
                     </div>
                     <p class="text-slate-500 text-sm mb-4">Renseignez le programme de votre système : l'appli comptabilise automatiquement chaque passage dans le calcul du déficit hydrique, même si vous ne vous connectez que plusieurs jours plus tard.</p>
@@ -1039,6 +1040,17 @@
 
             renderDripCheckboxes();
             renderDripStatus();
+            uiApercuStatutGoutteAGoutte();
+        }
+
+        function uiApercuStatutGoutteAGoutte() {
+            const badge = document.getElementById('drip-active-badge');
+            if (!badge) return;
+            const actif = document.getElementById('drip-active')?.checked || false;
+            badge.textContent = actif ? 'Actif' : 'Inactif';
+            badge.className = actif
+                ? 'text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700'
+                : 'text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-500';
         }
 
         function uiEnregistrerGoutteAGoutte() {
@@ -1099,9 +1111,13 @@
             renderRecommendations();
             renderChart();
 
-            showToast(actif
-                ? `🚿 Programme enregistré : ${quantiteL} L tous les ${frequenceJours} jour(s) pour ${zones.length} zone(s), à partir du ${depuis}.`
-                : "🚿 Goutte-à-goutte désactivé à partir d'aujourd'hui : l'historique des passages précédents reste inchangé.", 'success');
+            if (actif) {
+                showToast(`🚿 Programme enregistré : ${quantiteL} L tous les ${frequenceJours} jour(s) pour ${zones.length} zone(s), à partir du ${depuis}.`, 'success');
+            } else if (zones.length > 0) {
+                showToast("🚿 Programme enregistré mais INACTIF : cochez « Activé » en haut de la carte puis enregistrez à nouveau pour qu'il compte dans les calculs.", 'warning');
+            } else {
+                showToast("🚿 Goutte-à-goutte désactivé à partir d'aujourd'hui : l'historique des passages précédents reste inchangé.", 'info');
+            }
         }
 
         function renderCheckboxes() {
@@ -1185,7 +1201,7 @@
                     <div class="p-4 rounded-xl border text-center ${statusConfig.borderClass} ${statusConfig.bgClass} flex flex-col justify-between">
                         <div>
                             <span class="text-xs font-bold text-slate-500 block uppercase tracking-wider">${safeIcon} ${safePlant}</span>
-                            <span class="text-2xl font-black block my-1 ${statusConfig.textClass}">${def} mm</span>
+                            <span class="text-2xl font-black block my-1 ${statusConfig.textClass}">${def} L</span>
                         </div>
                         <div>
                             <span class="text-xs font-semibold px-2 py-0.5 rounded-full ${statusConfig.bgClass} ${statusConfig.textClass}">${statusConfig.statusText}</span>
@@ -1610,7 +1626,7 @@
                     ? `Tonte prévue le ${section.nextAction.date} • cible ${section.nextAction.hauteurCible} cm`
                     : '';
 
-                const metricValue = isPelouse ? `${section.hauteurPelouse} cm` : `${section.totalDeficit} mm`;
+                const metricValue = isPelouse ? `${section.hauteurPelouse} cm` : `${section.totalDeficit} L`;
                 const metricClass = isPelouse
                     ? (section.hauteurPelouse >= seuilTonte ? 'text-red-600' : section.hauteurPelouse >= seuilTonte - 1.5 ? 'text-amber-600' : 'text-emerald-600')
                     : (section.totalDeficit > 4 ? 'text-red-600' : section.totalDeficit > 0 ? 'text-amber-600' : 'text-emerald-600');
@@ -1869,7 +1885,7 @@
                     maintainAspectRatio: false,
                     scales: {
                         y: {
-                            title: { display: true, text: 'Déficit (mm)' },
+                            title: { display: true, text: 'Déficit (L)' },
                             grid: { color: '#f1f5f9' },
                             min: aUnPassageAffiche ? -6.5 : undefined
                         },

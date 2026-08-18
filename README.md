@@ -15,9 +15,11 @@ Cette version a été refondée pour fonctionner sans backend, avec un stockage 
 - Paramétrage de la localisation du jardin et du type de sol.
 - Saisie d’arrosages manuels avec date et quantité en litres.
 - Système de goutte à goutte automatique programmable, avec historique des versions de programme.
+- Badge visuel de statut pour indiquer si le goutte-à-goutte est actif ou inactif.
 - Historique des interventions et journal d’actions.
 - Graphiques dynamiques du déficit hydrique avec Chart.js.
 - Reprise propre des réglages d’irrigation automatique selon la date de référence et l’historique des passages.
+- Affichage des valeurs hydriques en litres pour rendre les volumes plus lisibles et cohérents avec la saisie utilisateur.
 - Sauvegarde locale dans le navigateur via LocalStorage.
 - Export / import de sauvegarde JSON vers le stockage cloud ou le système de fichiers.
 

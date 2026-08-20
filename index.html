@@ -267,9 +267,9 @@
 
                     <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
                         <label class="block text-sm font-medium text-slate-700">
-                            Quantité par passage (L)
+                            Quantité par zone (L)
                             <input id="drip-volume" type="number" min="0.5" step="0.5" class="mt-1 w-full border border-slate-300 rounded-xl px-3 py-2 text-sm">
-                            <span class="mt-1 block text-[11px] text-slate-500">Total délivré à chaque déclenchement, réparti entre les zones cochées</span>
+                            <span class="mt-1 block text-[11px] text-slate-500">Délivré à chaque zone cochée, à chaque déclenchement</span>
                         </label>
                         <label class="block text-sm font-medium text-slate-700">
                             Durée du cycle (min)
@@ -412,11 +412,60 @@
             return sortedA.every((value, index) => value === sortedB[index]);
         }
 
+        const ANCIENNES_PLANTES_ORNEMENTALES = ['Roses', 'Lavande', 'Tulipe', 'Hortensia'];
+
+        function migrerVersOrnementalGenerique(journal, parametres) {
+            const estAncienneOrnementale = (nom) => ANCIENNES_PLANTES_ORNEMENTALES.includes(nom);
+            const renommerListe = (liste) => {
+                if (!Array.isArray(liste)) return liste;
+                return [...new Set(liste.map(n => estAncienneOrnementale(n) ? 'Ornemental' : n))];
+            };
+
+            if (Array.isArray(parametres.plantesChoisies)) {
+                parametres.plantesChoisies = renommerListe(parametres.plantesChoisies);
+            }
+
+            if (Array.isArray(parametres.cultures)) {
+                const culturesOrnementales = parametres.cultures.filter(c => c && estAncienneOrnementale(c.nom));
+                if (culturesOrnementales.length > 0) {
+                    const autresCultures = parametres.cultures.filter(c => !c || !estAncienneOrnementale(c.nom));
+                    const datePlantationMin = culturesOrnementales
+                        .map(c => c.datePlantation)
+                        .filter(Boolean)
+                        .sort()[0] || getLocalTodayString();
+                    const paillageFusionne = culturesOrnementales.some(c => c.paillage);
+                    const existeDeja = autresCultures.find(c => c && c.nom === 'Ornemental');
+                    if (existeDeja) {
+                        existeDeja.paillage = Boolean(existeDeja.paillage || paillageFusionne);
+                    } else {
+                        autresCultures.push({ nom: 'Ornemental', datePlantation: datePlantationMin, dateArrachage: '', paillage: paillageFusionne });
+                    }
+                    parametres.cultures = autresCultures;
+                }
+            }
+
+            if (parametres.goutteAGoutte && Array.isArray(parametres.goutteAGoutte.zones)) {
+                parametres.goutteAGoutte.zones = renommerListe(parametres.goutteAGoutte.zones);
+            }
+            if (Array.isArray(parametres.goutteAGoutteHistorique)) {
+                parametres.goutteAGoutteHistorique.forEach(version => {
+                    if (version && Array.isArray(version.zones)) version.zones = renommerListe(version.zones);
+                });
+            }
+
+            if (journal && Array.isArray(journal.arrosages)) {
+                journal.arrosages.forEach(evt => {
+                    if (evt && Array.isArray(evt.plants)) evt.plants = renommerListe(evt.plants);
+                });
+            }
+        }
+
         function getDefaultCultureRecord(nom) {
             return {
                 nom,
                 datePlantation: getLocalTodayString(),
-                dateArrachage: ''
+                dateArrachage: '',
+                paillage: false
             };
         }
 
@@ -427,9 +476,13 @@
             tourbeux: 0.75
         };
 
+        // Un paillage organique limite l'évaporation du sol : on réduit le besoin en eau
+        // estimé d'environ 25%, une valeur prudente parmi celles couramment observées (20-50%).
+        const PAILLAGE_FACTEUR_REDUCTION = 0.75;
+
         function getSettingsDefaults() {
             return {
-                plantesChoisies: ['Pelouse', 'Tomate', 'Courgette', 'Basilic', 'Lavande', 'Roses'],
+                plantesChoisies: ['Pelouse', 'Tomate', 'Courgette', 'Basilic', 'Ornemental'],
                 cultures: [],
                 seuilTonteCm: 7,
                 hauteurCibleTonteCm: 5,
@@ -471,6 +524,82 @@
             // Un sol sableux retient moins d'eau (plafond plus bas), un sol argileux/tourbeux
             // en retient plus (plafond plus haut) — on réutilise donc l'inverse du facteur de sol.
             return 15 / getSoilFactor(typeSol);
+        }
+
+        // --- Courbe de température (repli si l'ET0 FAO n'est pas fourni par l'API) ---
+        // Interpolation linéaire par morceaux entre points de référence, plutôt qu'un
+        // palier abrupt : l'évapotranspiration augmente progressivement avec la chaleur,
+        // pas par sauts de 30% du jour au lendemain pour 1°C d'écart.
+        const COURBE_TEMPERATURE = [
+            { t: 5, f: 0.4 },
+            { t: 15, f: 0.7 },
+            { t: 25, f: 1.0 },
+            { t: 30, f: 1.15 },
+            { t: 35, f: 1.35 }
+        ];
+
+        function getFacteurTemperature(temp) {
+            const points = COURBE_TEMPERATURE;
+            if (temp <= points[0].t) return points[0].f;
+
+            const dernier = points[points.length - 1];
+            if (temp >= dernier.t) {
+                const avantDernier = points[points.length - 2];
+                const pente = (dernier.f - avantDernier.f) / (dernier.t - avantDernier.t);
+                return Math.min(dernier.f + pente * (temp - dernier.t), 1.5);
+            }
+
+            for (let i = 0; i < points.length - 1; i++) {
+                const p1 = points[i], p2 = points[i + 1];
+                if (temp >= p1.t && temp <= p2.t) {
+                    const ratio = (temp - p1.t) / (p2.t - p1.t);
+                    return p1.f + ratio * (p2.f - p1.f);
+                }
+            }
+            return 1.0;
+        }
+
+        // --- Facteur météo combiné ---
+        // Si l'API fournit l'ET0 FAO (évapotranspiration de référence Penman-Monteith,
+        // qui intègre déjà température, humidité, vent ET rayonnement solaire), on l'utilise
+        // directement : c'est nettement plus fidèle qu'une simple courbe de température.
+        // Sinon, on retombe sur la courbe de température seule.
+        const ET0_REFERENCE_MM = 4.0;
+
+        function getFacteurMeteo(meteo) {
+            if (typeof meteo.et0 === 'number' && Number.isFinite(meteo.et0) && meteo.et0 > 0) {
+                return meteo.et0 / ET0_REFERENCE_MM;
+            }
+            return getFacteurTemperature(meteo.maxTemp);
+        }
+
+        // --- Pluie efficace (ruissellement) ---
+        // Au-delà d'un certain volume par jour, une averse ne s'infiltre plus entièrement :
+        // une partie ruisselle plutôt que de profiter aux racines. On plafonne donc la pluie
+        // pleinement créditée et on ne compte qu'une fraction de l'excédent.
+        const PLUIE_SEUIL_PLEINE_EFFICACITE_MM = 15;
+        const PLUIE_EFFICACITE_EXCEDENT = 0.3;
+
+        function getPluieEfficace(pluieMm) {
+            if (pluieMm <= PLUIE_SEUIL_PLEINE_EFFICACITE_MM) return pluieMm;
+            const exces = pluieMm - PLUIE_SEUIL_PLEINE_EFFICACITE_MM;
+            return PLUIE_SEUIL_PLEINE_EFFICACITE_MM + exces * PLUIE_EFFICACITE_EXCEDENT;
+        }
+
+        // --- Courbe de croissance (jeunes plants) ---
+        // Un plant tout juste repiqué a un système racinaire et un feuillage réduits :
+        // son besoin réel est plus faible qu'une plante déjà bien installée. On applique
+        // une montée en charge progressive sur les 3 premières semaines après plantation.
+        const CROISSANCE_JOURS_JEUNE = 7;
+        const CROISSANCE_JOURS_MATURE = 21;
+        const CROISSANCE_FACTEUR_JEUNE = 0.5;
+
+        function getFacteurCroissance(joursDepuisPlantation) {
+            if (joursDepuisPlantation === null) return 1.0;
+            if (joursDepuisPlantation <= CROISSANCE_JOURS_JEUNE) return CROISSANCE_FACTEUR_JEUNE;
+            if (joursDepuisPlantation >= CROISSANCE_JOURS_MATURE) return 1.0;
+            const ratio = (joursDepuisPlantation - CROISSANCE_JOURS_JEUNE) / (CROISSANCE_JOURS_MATURE - CROISSANCE_JOURS_JEUNE);
+            return CROISSANCE_FACTEUR_JEUNE + ratio * (1.0 - CROISSANCE_FACTEUR_JEUNE);
         }
 
         function getVersionGoutteAGoutteALaDate(dateStr) {
@@ -518,8 +647,7 @@
         function getApportGoutteAGoutte(dateStr, plante) {
             if (!estJourGoutteAGoutte(dateStr, plante)) return 0;
             const gag = getVersionGoutteAGoutteALaDate(dateStr);
-            const nbZones = Array.isArray(gag.zones) && gag.zones.length > 0 ? gag.zones.length : 1;
-            return (Number(gag.quantiteL) || 0) / nbZones;
+            return Number(gag.quantiteL) || 0;
         }
 
         function getPlantCategory(name) {
@@ -614,7 +742,8 @@
                 .map(culture => ({
                     nom: culture.nom,
                     datePlantation: culture.datePlantation || getLocalTodayString(),
-                    dateArrachage: culture.dateArrachage || ''
+                    dateArrachage: culture.dateArrachage || '',
+                    paillage: Boolean(culture.paillage)
                 }));
         }
 
@@ -725,10 +854,7 @@
                 "Coriandre": { besoinEauStandardMm: 3.4, icone: "🌿", favoris: ["Aneth", "Pomme de terre"], maladies: "Montée en graines rapide" },
                 "Persil": { besoinEauStandardMm: 3.4, icone: "🌿", favoris: ["Tomate", "Radis"], maladies: "Septoriose" },
                 "Cerfeuil": { besoinEauStandardMm: 3.4, icone: "🌿", favoris: ["Radis", "Laitue"], maladies: "Montée en graines rapide" },
-                "Roses": { besoinEauStandardMm: 3.2, icone: "🌹", favoris: ["Lavande", "Romarin"], maladies: "Oidium, Rouille", category: 'ornemental', family: 'rose' },
-                "Lavande": { besoinEauStandardMm: 2.8, icone: "🌸", favoris: ["Roses", "Thym"], maladies: "Pourriture racinaire", category: 'ornemental', family: 'lamiacee' },
-                "Tulipe": { besoinEauStandardMm: 3.0, icone: "🌷", favoris: ["Pâquerette", "Iris"], maladies: "Botrytis", category: 'ornemental', family: 'bulbe' },
-                "Hortensia": { besoinEauStandardMm: 3.4, icone: "🌼", favoris: ["Fougère", "Buis"], maladies: "Mildiou", category: 'ornemental', family: 'hydrangea' },
+                "Ornemental": { besoinEauStandardMm: 3.0, icone: "🌸", favoris: [], maladies: "Oïdium, Pucerons", category: 'ornemental', family: 'ornemental' },
                 "Chou": { besoinEauStandardMm: 3.8, icone: "🥦", favoris: ["Menthe", "Romarin", "Thym"], maladies: "Hernie, Pucerons" },
                 "Brocoli": { besoinEauStandardMm: 3.8, icone: "🥦", favoris: ["Pomme de terre", "Oignon"], maladies: "Hernie, Pucerons" },
                 "Chou-fleur": { besoinEauStandardMm: 3.8, icone: "🥦", favoris: ["Céleri", "Pomme de terre"], maladies: "Hernie, Pucerons" },
@@ -742,7 +868,7 @@
         };
 
         const HISTORIQUE_METEO_SECOURS = [
-            { date: getLocalTodayString(), rainMm: 0, maxTemp: 25, minTemp: 12 }
+            { date: getLocalTodayString(), rainMm: 0, maxTemp: 25, minTemp: 12, et0: null }
         ];
 
         let meteoActuelle = [];
@@ -766,7 +892,7 @@
                     pastDays = Math.min(92, Math.max(3, joursEcart + 1));
                 }
 
-                const url = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&daily=temperature_2m_max,temperature_2m_min,precipitation_sum&timezone=Europe/Paris&past_days=${pastDays}&forecast_days=5`;
+                const url = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,et0_fao_evapotranspiration&timezone=Europe/Paris&past_days=${pastDays}&forecast_days=5`;
 
                 try {
                     const response = await fetch(url);
@@ -776,11 +902,13 @@
                     return data.daily.time.map((date, index) => {
                         const maxTemp = Math.round(data.daily.temperature_2m_max[index]);
                         const minTempBrut = data.daily.temperature_2m_min?.[index];
+                        const et0Brut = data.daily.et0_fao_evapotranspiration?.[index];
                         return {
                             date: date,
                             rainMm: data.daily.precipitation_sum[index] || 0,
                             maxTemp: maxTemp,
-                            minTemp: Number.isFinite(minTempBrut) ? Math.round(minTempBrut) : maxTemp - 8
+                            minTemp: Number.isFinite(minTempBrut) ? Math.round(minTempBrut) : maxTemp - 8,
+                            et0: Number.isFinite(et0Brut) ? et0Brut : null
                         };
                     });
                 } catch (error) {
@@ -816,6 +944,7 @@
             initDatabase() {
                 this.journal = this.load(this.KEYS.JOURNAL, { arrosages: [], tontes: [] });
                 this.parametres = this.load(this.KEYS.PARAMETRES, getSettingsDefaults());
+                migrerVersOrnementalGenerique(this.journal, this.parametres);
                 this.parametres.plantesChoisies = normalizePlantSelection(this.parametres.plantesChoisies);
                 this.parametres.cultures = Array.isArray(this.parametres.cultures) ? this.parametres.cultures : [];
                 this.parametres.seuilTonteCm = Number(this.parametres.seuilTonteCm || 7);
@@ -861,8 +990,8 @@
                 const dateStr = meteo.date;
                 if (dateStr > aujourdhui) return;
 
-                const pluie = meteo.rainMm;
-                const temp = meteo.maxTemp;
+                const pluieEfficace = getPluieEfficace(meteo.rainMm);
+                const facteurMeteo = getFacteurMeteo(meteo);
 
                 plantesChoisies.forEach(plante => {
                     const culture = cultures.find(c => c.nom === plante);
@@ -879,8 +1008,14 @@
 
                     let besoin = getPlantWaterNeed(plante) * getSoilFactor(DataManager.parametres?.typeSol || 'limoneux');
 
-                    if (temp > 30) besoin *= 1.3;
-                    else if (temp < 15) besoin *= 0.7;
+                    besoin *= facteurMeteo;
+
+                    if (culture && culture.datePlantation) {
+                        const joursDepuisPlantation = Math.round((dateToTimestamp(dateStr) - dateToTimestamp(culture.datePlantation)) / 86400000);
+                        besoin *= getFacteurCroissance(joursDepuisPlantation >= 0 ? joursDepuisPlantation : null);
+                    }
+
+                    if (culture && culture.paillage) besoin *= PAILLAGE_FACTEUR_REDUCTION;
 
                     const arrosagesDuJour = journal.arrosages.filter(evt => evt.date === dateStr && evt.plants.includes(plante));
                     const apportManuel = arrosagesDuJour.reduce((total, evt) => {
@@ -889,7 +1024,7 @@
                     }, 0);
                     const apportAutomatique = getApportGoutteAGoutte(dateStr, plante);
 
-                    let deficit = deficitPrecedent + besoin - pluie - apportManuel - apportAutomatique;
+                    let deficit = deficitPrecedent + besoin - pluieEfficace - apportManuel - apportAutomatique;
                     if (deficit < -5) deficit = -5;
                     const reserveUtileMax = getReserveUtileMaxMm(DataManager.parametres?.typeSol || 'limoneux');
                     if (deficit > reserveUtileMax) deficit = reserveUtileMax;
@@ -1015,11 +1150,12 @@
                 return;
             }
 
-            const litresParZone = Math.round(((Number(gag.quantiteL) || 0) / gag.zones.length) * 10) / 10;
+            const litresParZone = Math.round((Number(gag.quantiteL) || 0) * 10) / 10;
+            const totalParPassage = Math.round(litresParZone * gag.zones.length * 10) / 10;
             const prochain = getProchainPassageGoutteAGoutte();
             status.textContent = prochain
-                ? `✅ Actif : tous les ${gag.frequenceJours} jour(s), soit ${litresParZone} L par zone (${gag.zones.length} zone(s) desservie(s)). Prochain passage prévu le ${prochain}.`
-                : `✅ Actif : tous les ${gag.frequenceJours} jour(s), soit ${litresParZone} L par zone (${gag.zones.length} zone(s) desservie(s)).`;
+                ? `✅ Actif : tous les ${gag.frequenceJours} jour(s), ${litresParZone} L par zone (${gag.zones.length} zone(s), soit ${totalParPassage} L au total). Prochain passage prévu le ${prochain}.`
+                : `✅ Actif : tous les ${gag.frequenceJours} jour(s), ${litresParZone} L par zone (${gag.zones.length} zone(s), soit ${totalParPassage} L au total).`;
         }
 
         function initialiserChampsGoutteAGoutte() {
@@ -1112,7 +1248,7 @@
             renderChart();
 
             if (actif) {
-                showToast(`🚿 Programme enregistré : ${quantiteL} L tous les ${frequenceJours} jour(s) pour ${zones.length} zone(s), à partir du ${depuis}.`, 'success');
+                showToast(`🚿 Programme enregistré : ${quantiteL} L par zone tous les ${frequenceJours} jour(s), pour ${zones.length} zone(s) (${Math.round(quantiteL * zones.length * 10) / 10} L au total), à partir du ${depuis}.`, 'success');
             } else if (zones.length > 0) {
                 showToast("🚿 Programme enregistré mais INACTIF : cochez « Activé » en haut de la carte puis enregistrez à nouveau pour qu'il compte dans les calculs.", 'warning');
             } else {
@@ -1239,11 +1375,12 @@
 
                 const planteRef = version.zones[0];
                 if (estJourGoutteAGoutte(dStr, planteRef)) {
-                    const litresParZone = Math.round(((Number(version.quantiteL) || 0) / version.zones.length) * 10) / 10;
+                    const litresParZone = Math.round((Number(version.quantiteL) || 0) * 10) / 10;
+                    const totalParPassage = Math.round(litresParZone * version.zones.length * 10) / 10;
                     evenements.push({
                         date: dStr,
                         type: '🚿 Goutte-à-goutte',
-                        details: `${version.zones.join(', ')} • ${litresParZone} L/zone (auto)`,
+                        details: `${version.zones.join(', ')} • ${litresParZone} L/zone (${totalParPassage} L au total, auto)`,
                         auto: true
                     });
                 }
@@ -1399,6 +1536,10 @@
                                 <input type="date" data-culture="${safeName}" data-field="dateArrachage" value="${culture.dateArrachage || ''}" class="culture-date-input mt-1 w-full border border-slate-300 rounded-xl px-3 py-2 text-sm">
                             </label>
                         </div>
+                        <label class="flex items-center gap-2 mt-3 cursor-pointer w-fit">
+                            <input type="checkbox" data-culture-paillage="${safeName}" ${culture.paillage ? 'checked' : ''} class="culture-paillage-input w-4 h-4 text-emerald-600 accent-emerald-600 rounded">
+                            <span class="text-xs font-medium text-slate-700">🪱 Sol paillé (réduit le besoin en eau estimé)</span>
+                        </label>
                         <p class="text-xs mt-3 ${active.includes('✅') ? 'text-emerald-700' : 'text-amber-700'}">${active}</p>
                     </div>
                 `;
@@ -1411,6 +1552,12 @@
             container.querySelectorAll('.culture-date-input').forEach(input => {
                 input.addEventListener('change', () => {
                     uiMettreAJourCultureDate(input.dataset.culture, input.dataset.field, input.value);
+                });
+            });
+
+            container.querySelectorAll('.culture-paillage-input').forEach(input => {
+                input.addEventListener('change', () => {
+                    uiBasculerPaillageCulture(input.dataset.culturePaillage, input.checked);
                 });
             });
         }
@@ -1718,12 +1865,13 @@
             const gagStatut = getVersionGoutteAGoutteActuelle();
             if (gagStatut && gagStatut.actif && Array.isArray(gagStatut.zones) && gagStatut.zones.length > 0) {
                 const prochainPassage = getProchainPassageGoutteAGoutte();
-                const litresParZoneStatut = Math.round(((Number(gagStatut.quantiteL) || 0) / gagStatut.zones.length) * 10) / 10;
+                const litresParZoneStatut = Math.round((Number(gagStatut.quantiteL) || 0) * 10) / 10;
+                const totalStatut = Math.round(litresParZoneStatut * gagStatut.zones.length * 10) / 10;
                 conseilsHTML.push(`
                     <div class="flex items-start gap-3 p-3 bg-cyan-50 text-cyan-900 rounded-xl border border-cyan-200 text-sm">
                         <span>🚿</span>
                         <div>
-                            <strong>Goutte-à-goutte actif :</strong> tous les ${gagStatut.frequenceJours} jour(s), ${litresParZoneStatut} L/zone pour ${escapeHtml(gagStatut.zones.join(', '))}.
+                            <strong>Goutte-à-goutte actif :</strong> tous les ${gagStatut.frequenceJours} jour(s), ${litresParZoneStatut} L/zone pour ${escapeHtml(gagStatut.zones.join(', '))} (${totalStatut} L au total).
                             ${prochainPassage ? `<div class="mt-1">Prochain passage prévu le <span class="font-bold">${prochainPassage}</span>.</div>` : ''}
                         </div>
                     </div>
@@ -2196,6 +2344,24 @@
             renderRecommendations();
             renderChart();
             showToast(`🗑️ ${nom} retirée du jardin.`, 'success');
+        }
+
+        function uiBasculerPaillageCulture(nom, paille) {
+            const cultures = getCultureRecords();
+            const culture = cultures.find(entry => entry.nom === nom);
+            if (!culture) return;
+
+            culture.paillage = Boolean(paille);
+            DataManager.parametres.cultures = cultures;
+            DataManager.save(DataManager.KEYS.PARAMETRES, DataManager.parametres);
+
+            GardenLogic.mettreAJourDeficits(DataManager, meteoActuelle);
+            renderMetrics();
+            renderRecommendations();
+            renderChart();
+            showToast(paille
+                ? `🪱 ${nom} marquée comme paillée : besoin en eau réduit d'environ 25%.`
+                : `${nom} n'est plus marquée comme paillée.`, 'info');
         }
 
         function uiMettreAJourCultureDate(nom, field, value) {

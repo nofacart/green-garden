@@ -9,9 +9,12 @@ Cette version a été refondée pour fonctionner sans backend, avec un stockage 
 - Suivi du jardin en direct via les prévisions Open-Meteo.
 - Tableau de bord de synthèse avec : cultures actives, prochain arrosage et prochaine tonte.
 - Calcul de l’état hydrique du sol et suivi du déficit accumulé.
-- Prédiction d’arrosage adaptée à la météo, au type de sol et aux cultures suivies.
+- Prédiction d'arrosage adaptée à la météo, au type de sol, au stade de croissance et à la présence de paillage.
+- Courbe de besoin en eau selon les températures locales et calcul d'évapotranspiration de référence.
 - Prédiction de tonte en fonction de la hauteur du gazon et du seuil configuré.
-- Gestion détaillée des cultures avec dates de plantation et d’arrachage.
+- Gestion détaillée des cultures avec dates de plantation et d'arrachage.
+- Suivi du paillage pour réduire les besoins en eau des cultures.
+- Calcul du stade de croissance pour adapter les volumes d'arrosage (jeune plante / culture mature).
 - Paramétrage de la localisation du jardin et du type de sol.
 - Saisie d’arrosages manuels avec date et quantité en litres.
 - Système de goutte à goutte automatique programmable, avec historique des versions de programme.

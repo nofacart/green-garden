@@ -9,6 +9,24 @@ Toutes les modifications notables de ce projet sont documentées ici.
 - Ajustements éventuels sur les seuils et recommandations de tonte.
 - Améliorations visuelles et ergonomiques sur les écrans de décision.
 
+## [1.3.0] - 2026-08-20
+
+### Ajouts
+- Modèle agronomique avancé avec courbe de température pour calculer le coefficient de besoin en eau.
+- Système d'évapotranspiration de référence (ET0) pour affiner les prédictions de déficit hydrique.
+- Calcul d'efficacité de la pluie : les pluies supérieures au seuil sont comptabilisées avec un coefficient réduit pour modéliser le ruissellement.
+- Suivi du stade de croissance des plantes (jeune vs mature) avec facteur de réduction du besoin en eau pour les jeunes cultures.
+- Gestion du paillage avec facteur de réduction automatique du déficit hydrique.
+- Migration intelligente des anciennes cultures ornementales vers une gestion générique.
+
+### Améliorations
+- Calcul du déficit hydrique plus proche des réalités agronomiques et climatiques.
+- Prédictions plus justes selon la saison et le stade de développement des cultures.
+- Meilleure prise en compte de la pluviométrie réelle vs efficace.
+
+### Corrections
+- Nettoyage automatique des données ornementales légacy lors du premier démarrage en v1.3+.
+
 ## [1.2.2] - 2026-08-18
 
 ### Améliorations
